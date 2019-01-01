@@ -474,7 +474,7 @@ LRESULT CALLBACK window_proc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
   };
 
   auto now = GetTickCount64 () - start;
-  auto screen_saver_check = screen_saver_mode && (now > 10);
+  auto screen_saver_check = screen_saver_mode && (now > 1000);
 
   switch (message)
   {
@@ -610,7 +610,7 @@ void init_window (int nCmdShow)
     SetWindowLongW (hwnd, GWL_EXSTYLE, ex_style);
     SetWindowPos (
         hwnd
-      , NULL
+      , nullptr
       , 0
       , 0
       , cx
@@ -715,6 +715,38 @@ int show_screen_saver (int nCmdShow)
   return msg.wParam;
 }
 
+std::string utf8_encode (const std::wstring &wstr)
+{
+  if (wstr.empty()) 
+  {
+    return std::string();
+  }
+
+  auto size_needed = WideCharToMultiByte (
+      CP_UTF8
+    , 0
+    , wstr.c_str ()
+    , (int)wstr.size()
+    , nullptr
+    , 0
+    , nullptr
+    , nullptr
+    );
+
+  std::string strTo (size_needed, 0);
+  WideCharToMultiByte (
+      CP_UTF8
+    , 0
+    , wstr.c_str ()
+    , (int)wstr.size()
+    , &strTo.front ()
+    , size_needed
+    , nullptr
+    , nullptr
+    );
+  return strTo;
+}
+
 }
 
 extern "C"
@@ -737,10 +769,12 @@ int APIENTRY wWinMain (
     std::wstring command_line (lpCmdLine);
     std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);
 
+    auto invalid_command_line_msg = std::string ("Invalid argument, expecting /dev, /c, /s or /p <HWND>\r\n") + utf8_encode (command_line);
+
     std::wcmatch match;
     if (!std::regex_match (command_line.c_str (), match, re_commands))
     {
-      throw std::runtime_error ("Invalid argument, expecting /dev, /c, /s or /p HWND");
+      throw std::runtime_error (invalid_command_line_msg.c_str ());
     }
 
     assert (match.size () == 7);
@@ -775,7 +809,7 @@ int APIENTRY wWinMain (
     }
     else
     {
-      throw std::runtime_error ("Invalid argument, expecting /dev, /c, /s or /p HWND");
+      throw std::runtime_error (invalid_command_line_msg.c_str ());
     }
   }
   catch (std::exception const & e)

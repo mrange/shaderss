@@ -6,6 +6,9 @@
 #include <windows.h>
 #include <GL/gl.h>
 
+#include <cassert>
 #include <memory>
+#include <regex>
 #include <stdexcept>
+#include <string>
 #include <utility>
