@@ -382,6 +382,7 @@ HGLRC       hrc               ;
 bool        done              ;
 LONG        width             ;
 LONG        height            ;
+ULONGLONG   start             ;
 bool        screen_saver_mode ;
 
 PIXELFORMATDESCRIPTOR pfd =
@@ -466,6 +467,15 @@ int check_link_status (int id, char const * msg)
 
 LRESULT CALLBACK window_proc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+  auto kill = [] ()
+  {
+    done = true;
+    PostQuitMessage (0);
+  };
+
+  auto now = GetTickCount64 () - start;
+  auto screen_saver_check = screen_saver_mode && (now > 10);
+
   switch (message)
   {
   case WM_COMMAND:
@@ -478,12 +488,12 @@ LRESULT CALLBACK window_proc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
         return DefWindowProc (hWnd, message, wParam, lParam);
       }
     }
-    break;
+    return 0;
   case WM_SIZE:
     width  = LOWORD (lParam);
     height = HIWORD (lParam);
     glViewport (0, 0, width, height);
-    break;
+    return 0;
   case WM_PAINT:
     {
       PAINTSTRUCT ps;
@@ -491,15 +501,58 @@ LRESULT CALLBACK window_proc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
       // TODO: Add any drawing code that uses hdc here...
       EndPaint (hWnd, &ps);
     }
-    break;
+    return 0;
   case WM_DESTROY:
-    done = true;
-    PostQuitMessage (0);
-    break;
+    kill ();
+    return 0;
+  case WM_ACTIVATE:
+  case WM_ACTIVATEAPP:
+  case WM_NCACTIVATE:
+    if (screen_saver_check && !wParam)
+    {
+      kill ();
+      return 0;
+    }
+    else
+    {
+      return DefWindowProc (hWnd, message, wParam, lParam);
+    }
+  case WM_LBUTTONDOWN:
+  case WM_RBUTTONDOWN:
+  case WM_MBUTTONDOWN:
+  case WM_KEYDOWN:
+  case WM_KEYUP:
+  case WM_MOUSEMOVE:
+    if (screen_saver_check)
+    {
+      kill ();
+      return 0;
+    }
+    else
+    {
+      return DefWindowProc (hWnd, message, wParam, lParam);
+    }
+  case WM_SETCURSOR:
+    if (screen_saver_check)
+    {
+      return DefWindowProc (hWnd, message, 0, lParam);  // Clears wParam
+    }
+    else
+    {
+      return DefWindowProc (hWnd, message, wParam, lParam);
+    }
+  case WM_SYSCOMMAND:
+    if (screen_saver_check && (wParam == SC_CLOSE || wParam == SC_SCREENSAVE))
+    {
+      return false;
+    }
+    else
+    {
+      return DefWindowProc (hWnd, message, wParam, lParam);
+    }
   default:
     return DefWindowProc (hWnd, message, wParam, lParam);
   }
-  return 0;
 }
 
 ATOM register_class ()
@@ -635,7 +688,7 @@ int show_screen_saver (int nCmdShow)
     height = client.bottom - client.top;
   }
 
-  auto start = GetTickCount64 ();
+  start = GetTickCount64 ();
 
   // Main message loop:
   while (true)
