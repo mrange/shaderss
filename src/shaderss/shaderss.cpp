@@ -767,9 +767,9 @@ int APIENTRY wWinMain (
     CHECK (LoadStringW (hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING));
 
     std::wstring command_line (lpCmdLine);
-    std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);
+    std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+)|/c:(\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);
 
-    auto invalid_command_line_msg = std::string ("Invalid argument, expecting /dev, /c, /s or /p <HWND>\r\n") + utf8_encode (command_line);
+    auto invalid_command_line_msg = std::string ("Invalid argument, expecting /dev, /c, /c:<HWND>, /s or /p <HWND>\r\n") + utf8_encode (command_line);
 
     std::wcmatch match;
     if (!std::regex_match (command_line.c_str (), match, re_commands))
@@ -777,7 +777,7 @@ int APIENTRY wWinMain (
       throw std::runtime_error (invalid_command_line_msg.c_str ());
     }
 
-    assert (match.size () == 7);
+    assert (match.size () == 8);
 
     if (match[2].matched)
     {
@@ -805,6 +805,11 @@ int APIENTRY wWinMain (
     else if (match[6].matched)
     {
       // /p <HWND> - Show screen saver attached to HWND
+      return 1;    
+    }
+    else if (match[7].matched)
+    {
+      // /c:<HWND> - Show config modal attached to HWND
       return 1;    
     }
     else
