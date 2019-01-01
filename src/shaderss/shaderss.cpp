@@ -16,7 +16,7 @@ namespace
 #define STRINGIFY_(x) #x
 #define STRINGIFY(x) STRINGIFY_(x)
 
-char const * const vsh = R"SHADER(
+char const * const vertex_shader = R"SHADER(
 #version 430
 
 layout (location=0) in vec2 inVer;
@@ -35,7 +35,7 @@ void main()
 }
 )SHADER";
 
-const char * const fsh = R"SHADER(
+const char * const fragment_shader = R"SHADER(
 #version 430
 
 layout (location=0) uniform vec4 fpar[];
@@ -500,6 +500,7 @@ HINSTANCE   hinst ;
 HWND        hwnd  ;
 HDC         hdc   ;
 HGLRC       hrc   ;
+bool        done  ;
 
 PIXELFORMATDESCRIPTOR pfd =
 {
@@ -605,6 +606,7 @@ LRESULT CALLBACK window_proc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     }
     break;
   case WM_DESTROY:
+    done = true;
     PostQuitMessage (0);
     break;
   default:
@@ -672,8 +674,8 @@ void init_opengl ()
     gl_functions[i] = CHECK (wglGetProcAddress(gl_names[i]));
   }
 
-  vsid = oglCreateShaderProgramv (GL_VERTEX_SHADER, 1, &vsh);
-  fsid = oglCreateShaderProgramv (GL_FRAGMENT_SHADER, 1, &fsh);
+  vsid = oglCreateShaderProgramv (GL_VERTEX_SHADER, 1, &vertex_shader);
+  fsid = oglCreateShaderProgramv (GL_FRAGMENT_SHADER, 1, &fragment_shader);
 
   oglGenProgramPipelines (1, &pid);
   oglBindProgramPipeline (pid);
@@ -687,23 +689,19 @@ void init_opengl ()
 
 void draw_gl (std::uint64_t now, std::uint32_t w, std::uint32_t h)
 {
-  //--- update parameters -----------------------------------------
-
   auto t = 0.001f*now;
 
   float fparams[4]
   {
-    t,
-    w,
-    h,
-    0
+    t     ,
+    w*1.f ,
+    h*1.f ,
+    0     ,
   };
-
-  //--- render -----------------------------------------
 
   oglProgramUniform4fv (fsid, 0, 1, fparams);
 
-  glRects( -1, -1, 1, 1 );
+  glRects (-1, -1, 1, 1);
 }
 
 }
@@ -735,11 +733,10 @@ int APIENTRY wWinMain (
 
     auto start = GetTickCount64 ();
 
-    auto done = false;
     // Main message loop:
-    while (!done)
+    while (true)
     {
-      while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE))
+      while (!done && PeekMessage (&msg, 0, 0, 0, PM_REMOVE))
       {
         if (!TranslateAccelerator (msg.hwnd, hAccelTable, &msg))
         {
@@ -747,6 +744,8 @@ int APIENTRY wWinMain (
           DispatchMessage (&msg);
         }
       }
+
+      if (done) break;
 
       RECT rect;
       CHECK (GetClientRect(hwnd, &rect));
