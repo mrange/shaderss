@@ -514,11 +514,11 @@ void init_instance (int nCmdShow)
   hwnd = CHECK (CreateWindowW (
       window_class_name
     , szTitle
-    , WS_OVERLAPPEDWINDOW
+    , WS_VISIBLE | WS_OVERLAPPEDWINDOW
     , CW_USEDEFAULT
-    , 0
     , CW_USEDEFAULT
-    , 0
+    , 1280
+    , 1200
     , nullptr
     , nullptr
     , hinst
@@ -562,6 +562,8 @@ void init_opengl ()
 
 void draw_gl (std::uint64_t now, std::uint32_t w, std::uint32_t h)
 {
+  glViewport(0, 0, w, h);
+
   auto t = 0.001f*now;
 
   float fparams[4]
@@ -590,6 +592,8 @@ int APIENTRY wWinMain (
   {
     UNREFERENCED_PARAMETER (hPrevInstance);
     UNREFERENCED_PARAMETER (lpCmdLine);
+
+    CHECK (SetProcessDPIAware ());
 
     hinst = hInstance; // Store instance handle in our global variable
 
