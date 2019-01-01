@@ -4,8 +4,11 @@
 #include <windows.h>
 #include <GL/gl.h>
 
+#include <cassert>
 #include <memory>
+#include <regex>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 #include "glext.h"
@@ -612,6 +615,53 @@ void draw_gl (std::uint64_t now)
   glRects (-1, -1, 1, 1);
 }
 
+int show_screen_saver (int nCmdShow)
+{
+  register_class ();
+
+  init_window (nCmdShow);
+
+  init_opengl ();
+
+  HACCEL hAccelTable = LoadAccelerators (hinst, MAKEINTRESOURCE (IDC_SHADERSS));
+
+  MSG msg;
+
+  {
+    RECT client;
+
+    CHECK (GetClientRect(hwnd, &client));
+    width  = client.right - client.left;
+    height = client.bottom - client.top;
+  }
+
+  auto start = GetTickCount64 ();
+
+  // Main message loop:
+  while (true)
+  {
+    while (!done && PeekMessage (&msg, 0, 0, 0, PM_REMOVE))
+    {
+      if (!TranslateAccelerator (msg.hwnd, hAccelTable, &msg))
+      {
+        TranslateMessage (&msg);
+        DispatchMessage (&msg);
+      }
+    }
+
+    if (done) break;
+
+    auto now = GetTickCount64 () - start;
+
+    draw_gl (now);
+
+    SwapBuffers (hdc);
+    Sleep (1);
+  }
+
+  return msg.wParam;
+}
+
 }
 
 extern "C"
@@ -625,57 +675,55 @@ int APIENTRY wWinMain (
 {
   try
   {
-    UNREFERENCED_PARAMETER (hPrevInstance);
-    UNREFERENCED_PARAMETER (lpCmdLine);
+    hinst = hInstance; // Store instance handle in our global variable
 
     CHECK (SetProcessDPIAware ());
 
-    hinst = hInstance; // Store instance handle in our global variable
-
     CHECK (LoadStringW (hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING));
-    register_class ();
 
-    init_window (nCmdShow);
+    std::wstring command_line (lpCmdLine);
+    std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);
 
-    init_opengl ();
-
-    HACCEL hAccelTable = LoadAccelerators (hInstance, MAKEINTRESOURCE (IDC_SHADERSS));
-
-    MSG msg;
-
+    std::wcmatch match;
+    if (!std::regex_match (command_line.c_str (), match, re_commands))
     {
-      RECT client;
-
-      CHECK (GetClientRect(hwnd, &client));
-      width  = client.right - client.left;
-      height = client.bottom - client.top;
+      throw std::runtime_error ("Invalid argument, expecting /dev, /c, /s or /p HWND");
     }
 
-    auto start = GetTickCount64 ();
+    assert (match.size () == 7);
 
-    // Main message loop:
-    while (true)
+    if (match[2].matched)
     {
-      while (!done && PeekMessage (&msg, 0, 0, 0, PM_REMOVE))
-      {
-        if (!TranslateAccelerator (msg.hwnd, hAccelTable, &msg))
-        {
-          TranslateMessage (&msg);
-          DispatchMessage (&msg);
-        }
-      }
-
-      if (done) break;
-
-      auto now = GetTickCount64 () - start;
-
-      draw_gl (now);
-
-      SwapBuffers (hdc);
-      Sleep (1);
+      // No arg - Show config
+      return 1;
     }
-
-    return (int) msg.wParam;
+    else if (match[3].matched)
+    {
+      // /dev - Show screen saver in window
+      show_screen_saver (nCmdShow);
+      return 0;
+    }
+    else if (match[4].matched)
+    {
+      // /c - Show config modal
+      return 1;    
+    }
+    else if (match[5].matched)
+    {
+      // /s - Show screen saver in full screen
+      screen_saver_mode = true;
+      show_screen_saver (nCmdShow);
+      return 0;
+    }
+    else if (match[6].matched)
+    {
+      // /p <HWND> - Show screen saver attached to HWND
+      return 1;    
+    }
+    else
+    {
+      throw std::runtime_error ("Invalid argument, expecting /dev, /c, /s or /p HWND");
+    }
   }
   catch (std::exception const & e)
   {
