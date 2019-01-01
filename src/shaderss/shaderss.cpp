@@ -1,12 +1,15 @@
 #include "stdafx.h"
-#include "shaderss.h"
+#include "resource.h"
+
+#include <windows.h>
+#include <GL/gl.h>
 
 #include <memory>
 #include <stdexcept>
 #include <utility>
 
 #include "glext.h"
-                  
+
 #pragma comment(lib, "Opengl32")
 
 namespace 
@@ -369,13 +372,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 // -----------------------------------------------------------------------------
 )SHADER";
 
-HINSTANCE   hinst ;
-HWND        hwnd  ;
-HDC         hdc   ;
-HGLRC       hrc   ;
-bool        done  ;
-LONG        width ;
-LONG        height;
+HINSTANCE   hinst             ;
+HWND        hwnd              ;
+HDC         hdc               ;
+HGLRC       hrc               ;
+bool        done              ;
+LONG        width             ;
+LONG        height            ;
+bool        screen_saver_mode ;
 
 PIXELFORMATDESCRIPTOR pfd =
 {
@@ -475,7 +479,7 @@ LRESULT CALLBACK window_proc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
   case WM_SIZE:
     width  = LOWORD (lParam);
     height = HIWORD (lParam);
-    glViewport(0, 0, width, height);
+    glViewport (0, 0, width, height);
     break;
   case WM_PAINT:
     {
@@ -516,16 +520,17 @@ ATOM register_class ()
   return CHECK (RegisterClassExW (&wcex));
 }
 
-void init_instance (int nCmdShow)
+void init_window (int nCmdShow)
 {
-  hwnd = CHECK (CreateWindowW (
-      window_class_name
+  hwnd = CHECK (CreateWindowExW (
+      0
+    , window_class_name
     , szTitle
     , WS_VISIBLE | WS_OVERLAPPEDWINDOW
     , CW_USEDEFAULT
     , CW_USEDEFAULT
-    , 1280
-    , 1200
+    , CW_USEDEFAULT
+    , CW_USEDEFAULT
     , nullptr
     , nullptr
     , hinst
@@ -534,6 +539,29 @@ void init_instance (int nCmdShow)
 
   ShowWindow (hwnd, nCmdShow);
   CHECK (UpdateWindow (hwnd));
+
+  if (screen_saver_mode)
+  {
+    auto cx = GetSystemMetrics (SM_CXSCREEN);
+    auto cy = GetSystemMetrics (SM_CYSCREEN);
+
+    auto style = GetWindowLongW (hwnd, GWL_STYLE);
+    style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+    SetWindowLongW (hwnd, GWL_STYLE, style);
+
+    auto ex_style = GetWindowLongW (hwnd, GWL_EXSTYLE);
+    ex_style &= ~(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE);
+    SetWindowLongW (hwnd, GWL_EXSTYLE, ex_style);
+    SetWindowPos (
+        hwnd
+      , NULL
+      , 0
+      , 0
+      , cx
+      , cy
+      , SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOOWNERZORDER
+      );
+  }
 }
 
 
@@ -586,6 +614,8 @@ void draw_gl (std::uint64_t now)
 
 }
 
+extern "C"
+{
 int APIENTRY wWinMain (
     HINSTANCE hInstance
   , HINSTANCE hPrevInstance
@@ -605,7 +635,7 @@ int APIENTRY wWinMain (
     CHECK (LoadStringW (hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING));
     register_class ();
 
-    init_instance (nCmdShow);
+    init_window (nCmdShow);
 
     init_opengl ();
 
@@ -657,4 +687,5 @@ int APIENTRY wWinMain (
     MessageBoxW (nullptr, L"Unrecognized exception caught", L"Shader Screen Saver Crashed", MB_OK|MB_ICONERROR);
     return 99;
   }
+}
 }
