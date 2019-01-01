@@ -374,6 +374,8 @@ HWND        hwnd  ;
 HDC         hdc   ;
 HGLRC       hrc   ;
 bool        done  ;
+LONG        width ;
+LONG        height;
 
 PIXELFORMATDESCRIPTOR pfd =
 {
@@ -470,6 +472,11 @@ LRESULT CALLBACK window_proc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
       }
     }
     break;
+  case WM_SIZE:
+    width  = LOWORD (lParam);
+    height = HIWORD (lParam);
+    glViewport(0, 0, width, height);
+    break;
   case WM_PAINT:
     {
       PAINTSTRUCT ps;
@@ -560,18 +567,16 @@ void init_opengl ()
   CHECK_LINK_STATUS (pid);
 }
 
-void draw_gl (std::uint64_t now, std::uint32_t w, std::uint32_t h)
+void draw_gl (std::uint64_t now)
 {
-  glViewport(0, 0, w, h);
-
   auto t = 0.001f*now;
 
   float fparams[4]
   {
-    t     ,
-    w*1.f ,
-    h*1.f ,
-    0     ,
+    t         ,
+    width*1.f ,
+    height*1.f,
+    0         ,
   };
 
   oglProgramUniform4fv (fsid, 0, 1, fparams);
@@ -608,6 +613,14 @@ int APIENTRY wWinMain (
 
     MSG msg;
 
+    {
+      RECT client;
+
+      CHECK (GetClientRect(hwnd, &client));
+      width  = client.right - client.left;
+      height = client.bottom - client.top;
+    }
+
     auto start = GetTickCount64 ();
 
     // Main message loop:
@@ -624,12 +637,9 @@ int APIENTRY wWinMain (
 
       if (done) break;
 
-      RECT rect;
-      CHECK (GetClientRect(hwnd, &rect));
-
       auto now = GetTickCount64 () - start;
 
-      draw_gl (now, rect.right - rect.left, rect.bottom - rect.top);
+      draw_gl (now);
 
       SwapBuffers (hdc);
       Sleep (1);
