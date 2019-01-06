@@ -32,46 +32,17 @@ void main()
 // END - Common prelude
 // -----------------------------------------------------------------------
 
-// Created by mrange/2018
-// License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
-
 #define TOLERANCE       0.00001
-#define MAX_RAY_LENGTH  5.0
+#define MAX_RAY_LENGTH  8.0
 #define MAX_BOUNCES     5
 #define MAX_RAY_MARCHES 75
 
 #define PI              3.141592654
 #define TAU             (2.0*PI)
-#define PHI             (sqrt(5.0)*0.5 + 0.5)
 
 #define DEG2RAD         (PI/180.0)
 
-#define FADEINTIME      2.0
-#define ACTIVATETIME    4.0
-
 #define AA              0
-
-const vec3 gdf3  = normalize(vec3(1, 1, 1 ));
-const vec3 gdf4  = normalize(vec3(-1, 1, 1));
-const vec3 gdf5  = normalize(vec3(1, -1, 1));
-const vec3 gdf6  = normalize(vec3(1, 1, -1));
-const vec3 gdf7  = normalize(vec3(0, 1, PHI+1.0));
-const vec3 gdf8  = normalize(vec3(0, -1, PHI+1.0));
-const vec3 gdf9  = normalize(vec3(PHI+1.0, 0, 1));
-const vec3 gdf10 = normalize(vec3(-PHI-1.0, 0, 1));
-const vec3 gdf11 = normalize(vec3(1, PHI+1.0, 0));
-const vec3 gdf12 = normalize(vec3(-1, PHI+1.0, 0));
-
-const vec3 inert   = 0.5*vec3(1.0, 3.0, 2.0);
-const vec3 radiant = vec3(1.0, 1.0/3.0, 1.0/2.0);
-
-const vec3 lightPos1 = 100.0*vec3(-1.0, 0.0, 0.0);
-const vec3 lightCol1 = vec3(0.63, 0.63, 1.0);
-
-float linstep(in float f, in float t, in float x)
-{
-  return clamp((x - f)/(t - f), 0.0, 1.0);
-}
 
 void pR(inout vec2 p, float a)
 {
@@ -83,136 +54,302 @@ float maxComp(in vec3 p)
   return max(p.x,max(p.y,p.z));
 }
 
-
-float fIcosahedron(vec3 p, float r) {
-	float d = 0.0;
-    d = max(d, abs(dot(p, gdf3)));
-    d = max(d, abs(dot(p, gdf4)));
-    d = max(d, abs(dot(p, gdf5)));
-    d = max(d, abs(dot(p, gdf6)));
-    d = max(d, abs(dot(p, gdf7)));
-    d = max(d, abs(dot(p, gdf8)));
-    d = max(d, abs(dot(p, gdf9)));
-    d = max(d, abs(dot(p, gdf10)));
-    d = max(d, abs(dot(p, gdf11)));
-    d = max(d, abs(dot(p, gdf12)));
-	return d - r;
+float lengthN(in vec3 v, in float n)
+{
+  v = abs(v);
+  v = pow(v, vec3(n));
+  return pow(v.x + v.y + v.z, 1.0/n);
 }
 
-float impulse1(in vec3 p, out vec3 col, out float ref, out float trans, out vec3 absorb)
+float sdRoundCube(in vec3 p, float r)
 {
-  col    = 0.3*radiant;
-  ref    = 0.4;
-  trans  = 0.9;
-
-  float time = iTime - ACTIVATETIME;
-
-  absorb = mix(inert, -(1.0 + 0.25*cos(time/8.0))*radiant, linstep(0.0, 1.0, time));
-
-  return fIcosahedron(p, 1.0);
+  return lengthN(p, 8.0) - r;
 }
 
-float distanceField(in vec3 p, out vec3 col, out float ref, out float trans, out vec3 absorb)
+float sdBox(in vec3 p, in vec3 b)
 {
-  pR(p.yz, -PI/4.0);
-  pR(p.xy, iTime/3.0);
-  pR(p.yz, PI/4.0);
+  vec3  di = abs(p) - b;
+  return maxComp(di);
+}
 
-  float i = impulse1(p, col, ref, trans, absorb);
+float sgn(float x)
+{
+  return (x<0.0)?-1.0:1.0;
+}
 
-  return i;
+void pR90(inout vec2 p)
+{
+  p = vec2(p.y, -p.x);
+}
+
+float pMirror(inout float p, float dist)
+{
+  float s = sgn(p);
+  p = abs(p)-dist;
+  return s;
+}
+
+float fCapsule(vec3 p, float r, float c)
+{
+  return mix(length(p.xz) - r, length(vec3(p.x, abs(p.y) - c, p.z)) - r, step(c, abs(p.y)));
+}
+
+float capsule(in vec3 p, float r, in vec3 off, in float rot)
+{
+  p -= off;
+  pR(p.xy, rot*DEG2RAD);
+  return fCapsule(p, r, 5.0);
+}
+
+float letterw(in vec3 p, float r)
+{
+  vec3 o  = vec3(3.0, 0.0, 0.0);
+  float a = 17.0;
+
+  pMirror(p.x, 3.0);
+  float d0 = capsule(p, r, -0.5*o, a);
+  float d1 = capsule(p, r, 0.5*o, -a);
+  float d  = min(d0, d1);
+
+  return d;
+}
+
+float letterm(in vec3 p, float r)
+{
+  vec3 o  = vec3(3.0, 0.0, 0.0);
+  float a = 22.0;
+  p.x /= 1.2;
+
+  pMirror(p.x, 2.3);
+  p.x = -p.x;
+  float d0 = capsule(p, r, -0.5*o, 0.0);
+  float d1 = capsule(p - vec3(-1.1, 0.4, 0.0), r, 0.5*o, a);
+  float d  = min(d0, d1);
+
+  return d;
+}
+
+float fTorus(vec3 p, float smallRadius, float largeRadius)
+{
+  return length(vec2(length(p.xz) - largeRadius, p.y)) - smallRadius;
+}
+
+float lettero(in vec3 p, float r)
+{
+  pR90(p.yz);
+  p.x  /= 0.9;
+
+  return fTorus(p, r, 6.0);
+}
+
+float letterc(in vec3 p, float r)
+{
+  pR90(p.yz);
+  p.x  /= 0.9;
+
+  float  b = sdBox(p - vec3(6.0, 0.0, 0.0), vec3(4.0 - r));
+  float  t = fTorus(p, r, 6.0);
+
+  return max(t, -b);
+}
+
+float letters(in vec3 p, float bb, float off, float r)
+{
+  float  w = letterw(p - vec3(0.0, 0.0, -off), r);
+  pR90(p.xz);
+  float  c = letterc(p - vec3(0.0, 0.0, -off), r);
+  pR90(p.xz);
+  float  o = lettero(p - vec3(0.0, 0.0, -off), r);
+  pR90(p.xz);
+  float  m = letterm(p - vec3(0.0, 0.0, -off), r);
+
+  return max(min(min(w ,c), min(o ,m)), bb);
+}
+
+float logo(in vec3 p, out vec3 col, out float ref, out vec3 absorb)
+{
+  float dist = 1.8;
+  float c2 = pMirror(p.z, 2.0*dist);
+  float c1 = pMirror(p.z, dist);
+  float c0 = pMirror(p.x, dist);
+  float c  = c0 * c1 * c2;
+  if (c > 0.0)
+  {
+    ref    = 0.9;
+    col    = vec3(1.0);
+    absorb = 5.0*vec3(3.0, 2.0, 1.0);
+  }
+  else
+  {
+    ref    = 0.3;
+    col    = vec3(0.0);
+    absorb = 5.0*vec3(3.0, 2.0, 1.0);
+  }
+
+  return sdRoundCube(p, 1.0);
+}
+
+float angleWcom(float time)
+{
+  time = max(time, 0.0);
+  return smoothstep(0.0, 1.0, time)*3.0*PI/2.0;
+}
+
+float wcom(in vec3 p, out vec3 col, out float ref, out vec3 absorb)
+{
+  float time = iTime/3.0;
+  pR(p.xy, 0.5*sin(time/5.0));
+  pR(p.yz, 0.5*sin(time/7.0));
+  pR(p.xz, -time/3.0);
+  float bb = sdBox(p - vec3(0.0, 0.0, 0.0), vec3(1.2));
+  float rc = sdRoundCube(p - vec3(0.0, 0.0, 0.0), 1.0);
+
+  float s   = 0.1;
+  float i   = logo((p - vec3(0.0, 1.11, 0.0))/s, col, ref, absorb)*s;
+  float ils = letters(p/s, bb, 10.0, 1.5)*s;
+  float ls  = letters(p/s, bb, 10.5, 1.0)*s;
+
+  float d = rc;
+  d = max(d, -ils);
+
+  rc = d;
+
+  d = min(d, ls);
+  d = min(d, i);
+
+  if (d == rc)
+  {
+    col = vec3(1.0);
+    ref = 0.0;
+    absorb = 5.0*vec3(3.0, 2.0, 1.0);
+  }
+  else if (d == ls)
+  {
+    ref    = 0.9;
+    col    = vec3(1.0);
+    absorb = 5.0*vec3(3.0, 2.0, 1.0);
+  }
+
+
+  return d;
+}
+
+
+float distanceField(in vec3 p, out vec3 col, out float ref, out vec3 absorb)
+{
+  return wcom(p, col, ref, absorb);
 }
 
 vec3 saturate(in vec3 a)   { return clamp(a, 0.0, 1.0); }
 vec2 saturate(in vec2 a)   { return clamp(a, 0.0, 1.0); }
 float saturate(in float a) { return clamp(a, 0.0, 1.0); }
 
+const vec3 lightPos1 = 100.0*vec3(0.5,-2.0, 1.2);
+const vec3 lightPos2 = 100.0*vec3(-0.5,-2.0, -1.2);
+
+const vec3 lightCol1 = vec3(8.0/8.0,7.0/8.0,6.0/8.0);
+const vec3 lightCol2 = vec3(8.0/8.0,6.0/8.0,7.0/8.0);
+
 vec3 getSkyColor(vec3 rayDir)
 {
   vec3 lightDir1 = normalize(lightPos1);
+  vec3 lightDir2 = normalize(lightPos2);
 
   float ld1      = max(dot(lightDir1, rayDir), 0.0);
-  vec3 final     = 0.1*lightCol1;
+  float ld2      = max(dot(lightDir2, rayDir), 0.0);
+  vec3 final     = vec3(0.125);
 
   if ((rayDir.y > abs(rayDir.x)*1.0) && (rayDir.y > abs(rayDir.z*0.25))) final = vec3(2.0)*rayDir.y;
   float roundBox = length(max(abs(rayDir.xz/max(0.0,rayDir.y))-vec2(0.9, 4.0),0.0))-0.1;
   final += vec3(0.8)* pow(saturate(1.0 - roundBox*0.5), 6.0);
 
-  float time = iTime-ACTIVATETIME;
-
-  vec3 light = linstep(0.0, 0.5, time)*(1.0 - linstep(2.0, 6.0, time))*lightCol1;
-
-  final += light*pow(ld1, 20.0);
+  final += pow(lightCol1, vec3(2.0, 1.5, 1.5)) * pow(ld1, 8.0);
+  final += lightCol1 * pow(ld1, 200.0);
+  final += pow(lightCol2, vec3(2.0, 1.5, 1.5)) * pow(ld2, 6.0);
+  final += lightCol2 * pow(ld2, 200.0);
   return final;
 }
 
 vec3 normal(in vec3 pos)
 {
-  vec3  eps = vec3(.0001,0.0,0.0);
+  vec3  eps = vec3(.001,0.0,0.0);
   vec3 col;
   float ref;
-  float trans;
   vec3 nor;
   vec3 absorb;
-  nor.x = distanceField(pos+eps.xyy, col, ref, trans, absorb) - distanceField(pos-eps.xyy, col, ref, trans, absorb);
-  nor.y = distanceField(pos+eps.yxy, col, ref, trans, absorb) - distanceField(pos-eps.yxy, col, ref, trans, absorb);
-  nor.z = distanceField(pos+eps.yyx, col, ref, trans, absorb) - distanceField(pos-eps.yyx, col, ref, trans, absorb);
+  nor.x = distanceField(pos+eps.xyy, col, ref, absorb) - distanceField(pos-eps.xyy, col, ref, absorb);
+  nor.y = distanceField(pos+eps.yxy, col, ref, absorb) - distanceField(pos-eps.yxy, col, ref, absorb);
+  nor.z = distanceField(pos+eps.yyx, col, ref, absorb) - distanceField(pos-eps.yyx, col, ref, absorb);
   return normalize(nor);
 }
 
-float rayMarch(in float dmod, in vec3 ro, inout vec3 rd, float mint, float minstep, out int rep, out vec3 col, out float ref, out float trans, out vec3 absorb)
+float rayMarch(in float dmod, in vec3 ro, inout vec3 rd, float mint, float maxt, out int rep, out vec3 col, out float ref, out vec3 absorb)
 {
   float t = mint;
-  float distance;
   for (int i = 0; i < MAX_RAY_MARCHES; i++)
   {
-    float distance_ = distanceField(ro + rd*t, col, ref, trans, absorb);
-    distance = dmod*distance_;
-    if (distance < TOLERANCE || t > MAX_RAY_LENGTH) break;
-    t += max(distance, minstep);
+    float distance_ = distanceField(ro + rd*t, col, ref, absorb);
+    float distance = dmod*distance_;
+    if (distance < TOLERANCE || t > maxt) break;
+    t += max(distance, 0.001);
     rep = i;
   }
-
-  if (distance > TOLERANCE) return MAX_RAY_LENGTH;
-
   return t;
 }
 
-vec3 postProcess(in vec3 col, in vec2 p)
+float softShadow(in vec3 pos, in vec3 ld, in float ll, float mint, float k)
 {
-  col=pow(clamp(col,0.0,1.0),vec3(0.75));
+  const float minShadow = 0.25;
+  float res = 1.0;
+  float t = mint;
+  vec3 col;
+  float ref;
+  vec3 absorb;
+  for (int i=0; i<24; i++)
+  {
+    float distance = distanceField(pos + ld*t, col, ref, absorb);
+    res = min(res, k*distance/t);
+    if (ll <= t) break;
+    if(res <= minShadow) break;
+    t += max(mint*0.2, distance);
+  }
+  return clamp(res,minShadow,1.0);
+}
+
+vec3 postProcess(in vec3 col, in vec2 q)
+{
+  col=pow(clamp(col,0.0,1.0),vec3(0.45));
   col=col*0.6+0.4*col*col*(3.0-2.0*col);  // contrast
   col=mix(col, vec3(dot(col, vec3(0.33))), -0.4);  // satuation
+  col*=0.5+0.5*pow(19.0*q.x*q.y*(1.0-q.x)*(1.0-q.y),0.7);  // vigneting
   return col;
 }
 
+
+
 vec3 render(in vec3 ro, in vec3 rd)
 {
-  vec3 lightPos = 1.5*vec3(1.0, 3.0, 1.0);
+  vec3 lightPos = 2.0*vec3(1.5, 3.0, 1.0);
 
-  vec3 final  = vec3(0.0);
+  vec3 col    = vec3(0.0);
 
-  vec3 ragg   = vec3(1.0);
+  vec3 ragg2 = vec3(1.0);
 
   float tdist = 0.0;
 
-  float refraction = 0.95;
+  const float refraction = 0.9;
 
   bool inside = false;
 
-  float mint    = 0.01;
-  float minstep = 0.001;
-
   for (int i = 0; i < MAX_BOUNCES; ++i)
   {
-    if (maxComp(ragg) <  0.01) break;
+    if (maxComp(ragg2) <  0.01) break;
     float dmod  = inside ? -1.0 : 1.0;
-    vec3 absorb ;
-    vec3 col    ;
-    float ref   ;
-    float trans ;
-    int rep     ;
-    float t     = rayMarch(dmod, ro, rd, mint, minstep, rep, col, ref, trans, absorb);
+    vec3 absorb = vec3(3.0, 2.0, 1.0);
+    vec3 mat    = vec3(1.0);
+    float rscale= 0.9;
+    int rep     = 0;
+    float t     = rayMarch(dmod, ro, rd, 0.01, MAX_RAY_LENGTH, rep, mat, rscale, absorb);
     tdist       += t;
 
     vec3 pos    = ro + t*rd;
@@ -227,14 +364,9 @@ vec3 render(in vec3 ro, in vec3 rd)
     else
     {
       // Ray intersected sky
-      final += ragg*getSkyColor(rd);
+      col += ragg2*getSkyColor(rd);
       break;
     }
-
-    float fresnel = pow(1.0 - abs(dot(nor, rd)), 2.0);
-
-    ref = mix(ref, 1.0, fresnel);
-    trans = mix(trans, 0.0, fresnel);
 
     float mref = refraction;
 
@@ -250,17 +382,22 @@ vec3 render(in vec3 ro, in vec3 rd)
     vec3 lv   = lightPos - pos;
     vec3  ld  = normalize(lv);
     float ll  = length(lv);
+    // TODO: Rework shadow to "work" with transparent objects
+    float sha = 1.0;
+    if (!inside)
+    {
+      sha = softShadow(pos, ld, ll, 0.01, 64.0);
+    }
 
     float dif = max(dot(nor,ld),0.0);
     float occ = 1.0 - float(rep)/float(MAX_RAY_MARCHES);
-    float l   = dif*occ;
-
-    vec3 lr   = vec3(0.0);
+    float l   = dif*occ*sha;
 
     float lin = mix(0.2, 1.0, l);
 
     vec3 sky  = getSkyColor(refl);
-    vec3 mcol = mix(lin*col + lr, sky, ref);
+    mat *= (0.7 + 0.3*abs(nor.zxy));
+    vec3 mcol = 0.8*lin*mat + 0.2*sky;
 
     vec3 beer = vec3(1.0);
 
@@ -268,38 +405,48 @@ vec3 render(in vec3 ro, in vec3 rd)
     {
       beer = exp(-absorb*t);
     }
-
-    final      += (1.0 - trans)*ragg*beer*mcol;
-    ragg       *= trans*beer;
+    col        += (1.0 - rscale)*ragg2*beer*mcol;
+    ragg2      *= rscale*beer;
 
     ro        = pos;
 
     if (refr == vec3(0.0))
     {
-        rd = refl;
+       rd = refl;
     }
     else
     {
       rd = refr;
+    }
+
+    if (dot(refl, rd) < 0.9)
+    {
       inside = !inside;
     }
   }
 
-  return final;
+
+  return col;
 }
 
 vec3 getSample(in vec2 p)
 {
-  if (length(p) > 1.0) return vec3(0.0);
+  // camera
 
-  vec3 ro  = vec3(3.0, 0.0, 0.0);
+  float time = iTime;
 
+  vec3 ro  = vec3(1.0, 6.0, 0.0);
   vec3 la  = vec3(0.0);
 
+  pR(ro.xz, time/3.0);
+  pR(ro.xy, 0.35*sin(time/5.0));
+  pR(ro.yz, 0.45*sin(time/7.0));
+
+
   vec3 ww = normalize(la - ro);
-  vec3 uu = normalize(cross(vec3(0.0,1.0,0.0), ww ));
+  vec3 uu = normalize(cross(vec3(0.0,0.0,1.0), ww ));
   vec3 vv = normalize(cross(ww,uu));
-  vec3 rd = normalize( p.x*uu + p.y*vv + 2.0*ww );
+  vec3 rd = normalize( p.x*uu + p.y*vv + 2.5*ww );
 
   vec3 col = render(ro, rd);
 
@@ -328,9 +475,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
   col /= 4.0;
 #endif
 
-  float fadeIn = linstep(0.0, FADEINTIME, iTime);
 
-  fragColor = vec4(postProcess(col, p)*fadeIn, 1.0);
+  float fadeIn = smoothstep(0.0, 3.0, iTime);
+
+  fragColor = vec4(postProcess(col, q)*fadeIn, 1.0);
+
 }
 
 // -----------------------------------------------------------------------------
