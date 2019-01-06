@@ -9,6 +9,8 @@
   <ItemGroup>
     <ClCompile Include="shaderss.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="vertex_shader.cpp" />
+    <ClCompile Include="fragment_shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="shaderss.ico" />
