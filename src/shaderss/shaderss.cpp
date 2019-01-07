@@ -52,8 +52,8 @@ PIXELFORMATDESCRIPTOR pfd =
 };
 
 
-WCHAR       szTitle[MAX_LOADSTRING]             ; // The title bar text
-WCHAR const window_class_name[] = L"SHADER_SS"  ; // the main window class name
+WCHAR const window_title[]      = L"Shader Screen Saver"; // The title bar text
+WCHAR const window_class_name[] = L"SHADER_SS"          ; // the main window class name
 
 GLuint pid  ;
 GLuint fsid ;
@@ -231,7 +231,7 @@ void init_window (int nCmdShow)
   hwnd = CHECK (CreateWindowExW (
       0
     , window_class_name
-    , szTitle
+    , window_title
     , WS_VISIBLE | WS_OVERLAPPEDWINDOW
     , CW_USEDEFAULT
     , CW_USEDEFAULT
@@ -416,8 +416,6 @@ int APIENTRY wWinMain (
     hinst = hInstance; // Store instance handle in our global variable
 
     CHECK (SetProcessDPIAware ());
-
-    CHECK (LoadStringW (hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING));
 
     std::wstring command_line (lpCmdLine);
     std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+)|/c:(\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);
