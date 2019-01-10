@@ -5,6 +5,7 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="glext.h" />
+    <ClInclude Include="common.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="shaderss.cpp" />

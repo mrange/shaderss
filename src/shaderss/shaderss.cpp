@@ -2,8 +2,10 @@
 #include "resource.h"
 
 #include <windows.h>
+#include <wincodec.h> 
 #include <GL/gl.h>
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <regex>
@@ -13,6 +15,8 @@
 
 #include "glext.h"
 
+#include "common.hpp"
+
 #pragma comment(lib, "Opengl32")
 
 char const * const get_vertex_shader ();
@@ -20,44 +24,23 @@ char const * const get_fragment_shader ();
 
 namespace
 {
-#define MAX_LOADSTRING 100
-
-#define STRINGIFY_(x) #x
-#define STRINGIFY(x) STRINGIFY_(x)
-
-HINSTANCE   hinst             ;
-HWND        hwnd              ;
-HDC         hdc               ;
-HGLRC       hrc               ;
 bool        done              ;
-LONG        width             ;
-LONG        height            ;
 ULONGLONG   start             ;
 bool        screen_saver_mode ;
 
-PIXELFORMATDESCRIPTOR pfd =
-{
-  sizeof(PIXELFORMATDESCRIPTOR)                         ,
-  1                                                     ,
-  PFD_DRAW_TO_WINDOW|PFD_SUPPORT_OPENGL|PFD_DOUBLEBUFFER,
-  PFD_TYPE_RGBA                                         ,
-  32                                                    ,
-  0, 0, 0, 0, 0, 0, 8, 0                                ,
-  0, 0, 0, 0, 0                                         , // accum
-  32                                                    , // zbuffer
-  0                                                     ,  // stencil!
-  0                                                     ,  // aux
-  PFD_MAIN_PLANE                                        ,
-  0, 0, 0, 0                                            ,
-};
+HINSTANCE   hinst             ;
 
+HWND        hwnd              ;
+HDC         hdc               ;
 
-WCHAR const window_title[]      = L"Shader Screen Saver"; // The title bar text
-WCHAR const window_class_name[] = L"SHADER_SS"          ; // the main window class name
+LONG        width             ;
+LONG        height            ;
 
-GLuint pid  ;
-GLuint fsid ;
-GLuint vsid ;
+HGLRC       hrc               ;
+GLuint      pid               ;
+GLuint      fsid              ;
+GLuint      vsid              ;
+GLuint      tid               ;
 
 constexpr int gl_functions_count = 7;
 
@@ -82,17 +65,24 @@ void * gl_functions[gl_functions_count];
 #define oglGetProgramiv                 ((PFNGLGETPROGRAMIVPROC)          gl_functions[5])
 #define oglGetProgramInfoLog            ((PFNGLGETPROGRAMINFOLOGPROC)     gl_functions[6])
 
-template<typename T>
-auto check (T && v, char const * msg)
+PIXELFORMATDESCRIPTOR const pfd =
 {
-  if (!(v))
-  {
-    OutputDebugStringA (msg);
-    throw std::runtime_error (msg);
-  }
+  sizeof(PIXELFORMATDESCRIPTOR)                         ,
+  1                                                     ,
+  PFD_DRAW_TO_WINDOW|PFD_SUPPORT_OPENGL|PFD_DOUBLEBUFFER,
+  PFD_TYPE_RGBA                                         ,
+  32                                                    ,
+  0, 0, 0, 0, 0, 0, 8, 0                                ,
+  0, 0, 0, 0, 0                                         , // accum
+  32                                                    , // zbuffer
+  0                                                     , // stencil
+  0                                                     , // aux
+  PFD_MAIN_PLANE                                        ,
+  0, 0, 0, 0                                            ,
+};
 
-  return std::forward<T> (v);
-}
+WCHAR const window_title[]      = L"Shader Screen Saver"; // The title bar text
+WCHAR const window_class_name[] = L"SHADER_SS"          ; // the main window class name
 
 int check_link_status (int id, char const * msg)
 {
@@ -110,8 +100,6 @@ int check_link_status (int id, char const * msg)
 
   return id;
 }
-
-#define CHECK(expr) check (expr, (__FILE__ "(" STRINGIFY(__LINE__) "): Check failed for - " #expr))
 
 #define CHECK_LINK_STATUS(expr) check_link_status (expr, (__FILE__ "(" STRINGIFY(__LINE__) "): Check link status failed for - " #expr))
 
@@ -218,7 +206,7 @@ ATOM register_class ()
   wcex.hInstance      = hinst;
   wcex.hIcon          = LoadIcon (hinst, MAKEINTRESOURCE (IDI_SHADERSS));
   wcex.hCursor        = LoadCursor (nullptr, IDC_ARROW);
-  wcex.hbrBackground  = (HBRUSH) (COLOR_WINDOW+1);
+  wcex.hbrBackground  = (HBRUSH) GetStockObject(BLACK_BRUSH);
   wcex.lpszMenuName   = nullptr;
   wcex.lpszClassName  = window_class_name;
   wcex.hIconSm        = LoadIcon (wcex.hInstance, MAKEINTRESOURCE (IDI_SMALL));
@@ -273,6 +261,62 @@ void init_window (int nCmdShow)
 
 void init_opengl ()
 {
+  auto wic = cocreate_instance<IWICImagingFactory> (CLSID_WICImagingFactory);
+
+  com_ptr<IWICBitmapDecoder> wic_decoder;
+
+  CHECK_HR (wic->CreateDecoderFromFilename(
+      LR"*(C:\temp\lotr.jpg)*"
+    , nullptr
+    , GENERIC_READ
+    , WICDecodeMetadataCacheOnDemand
+    , wic_decoder.out ()
+    ));
+
+  com_ptr<IWICBitmapFrameDecode> wic_frame_decoder;
+  CHECK_HR (wic_decoder->GetFrame (0, wic_frame_decoder.out ()));
+
+  com_ptr<IWICFormatConverter> wic_format_converter;
+  CHECK_HR (wic->CreateFormatConverter (wic_format_converter.out ()));
+
+  CHECK_HR (wic_format_converter->Initialize (
+      wic_frame_decoder.get ()
+    , GUID_WICPixelFormat24bppRGB
+    , WICBitmapDitherTypeNone
+    , nullptr
+    , 0.F
+    , WICBitmapPaletteTypeCustom
+    ));
+
+  UINT wic_width = 0;
+  UINT wic_height = 0;
+  CHECK_HR (wic_format_converter->GetSize (&wic_width, &wic_height));
+
+  auto stride = wic_width*3;
+
+  std::vector<BYTE> pixels;
+  pixels.resize (stride*wic_height);
+
+  WICRect wic_rect { 0, 0, wic_width, wic_height };
+
+  CHECK_HR (wic_format_converter->CopyPixels (&wic_rect, 3*wic_width, pixels.size (), &pixels.front ()));
+
+  std::vector<BYTE> row;
+  row.resize (stride);
+
+  for (auto y = 0U; y < wic_height/2; ++y)
+  {
+    auto from = y;
+    auto to   = wic_height - y - 1;
+
+    auto pb   = pixels.begin ();
+    auto rb   = row.begin ();
+
+    std::copy (pb + from*stride , pb + from*stride + stride , rb              );
+    std::copy (pb + to*stride   , pb + to*stride + stride   , pb + from*stride);
+    std::copy (rb               , rb + stride               , pb + to*stride  );
+  }
+
   hdc = CHECK (GetDC(hwnd));
 
   auto pf = CHECK (ChoosePixelFormat (hdc,&pfd));
@@ -288,6 +332,13 @@ void init_opengl ()
     gl_functions[i] = CHECK (wglGetProcAddress(gl_names[i]));
   }
 
+  glGenTextures (1, &tid);
+  glBindTexture (GL_TEXTURE_2D, tid);
+  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, wic_width, wic_height, 0, GL_RGB, GL_UNSIGNED_BYTE, &pixels.front ());
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//  glGenerateMipmap(GL_TEXTURE_2D);
+
   auto vsh = get_vertex_shader ();
   auto fsh = get_fragment_shader ();
 
@@ -299,6 +350,7 @@ void init_opengl ()
   oglUseProgramStages (pid, GL_VERTEX_SHADER_BIT, vsid);
   oglUseProgramStages (pid, GL_FRAGMENT_SHADER_BIT, fsid);
 
+  CHECK_LINK_STATUS (tid);
   CHECK_LINK_STATUS (vsid);
   CHECK_LINK_STATUS (fsid);
   CHECK_LINK_STATUS (pid);
@@ -416,6 +468,9 @@ int APIENTRY wWinMain (
     hinst = hInstance; // Store instance handle in our global variable
 
     CHECK (SetProcessDPIAware ());
+
+    CHECK_HR (CoInitialize (0));
+    auto on_exit__co_unitialize = on_exit_do ([] { CoUninitialize (); });
 
     std::wstring command_line (lpCmdLine);
     std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+)|/c:(\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);

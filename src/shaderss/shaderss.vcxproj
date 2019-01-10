@@ -157,6 +157,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="common.hpp" />
     <ClInclude Include="glext.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
