@@ -10,8 +10,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="vertex_shader.cpp" />
-    <ClCompile Include="fragment_shader.cpp" />
     <ClCompile Include="screen_saver.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="common.cpp" />

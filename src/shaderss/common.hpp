@@ -244,3 +244,9 @@ com_ptr<T> cocreate_instance (IID const & clsid)
   return ptr;
 }
 
+void inplace_rtrim (std::wstring& s);
+
+void inplace_ltrim (std::wstring& s);
+
+void inplace_trim (std::wstring& s);
+

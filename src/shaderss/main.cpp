@@ -19,7 +19,7 @@
 
 namespace
 {
-HINSTANCE hinst;
+  HINSTANCE hinst;
 }
 
 HINSTANCE get__hinstance () noexcept 

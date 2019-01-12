@@ -9,12 +9,12 @@
 
 struct shader_info
 {
-  std::wstring  shader_id       ;
-  std::wstring  shader_author   ;
-  std::wstring  shader_license  ;
+  std::wstring  id              ;
+  std::wstring  author          ;
+  std::wstring  license         ;
   std::wstring  modifications   ;
   std::wstring  notes           ;
-  std::string   shader_source   ;
+  std::string   source          ;
 
   bool          requires_image  ;
 };

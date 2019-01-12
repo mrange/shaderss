@@ -1,6 +1,16 @@
 #include "stdafx.h"
 
+#include <type_traits>
+
 #include "common.hpp"
+
+namespace
+{
+
+  wchar_t const raw__whitespaces[] = L" \t\n\r\f\v";
+  // We want the trailing \0 as well
+  std::wstring const whitespaces (raw__whitespaces, std::extent<decltype(raw__whitespaces)>::value);
+}
 
 unit_t unit;
 empty_t empty;
@@ -48,3 +58,19 @@ std::string utf8_encode (const std::wstring &wstr)
   return strTo;
 }
 
+
+void inplace_rtrim (std::wstring& s)
+{
+  s.erase (s.find_last_not_of(whitespaces) + 1);
+}
+
+void inplace_ltrim (std::wstring& s)
+{
+  s.erase (0, s.find_first_not_of(whitespaces));
+}
+
+void inplace_trim (std::wstring& s)
+{
+  inplace_ltrim (s);
+  inplace_rtrim (s);
+}
