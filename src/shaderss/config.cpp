@@ -372,8 +372,8 @@ shader_configuration get__current_configuration ()
   return 
   {
       sis[0]
-    , 0.0
-    , 1.0
+    , 0
+    , 1
     , L""
   };
 }

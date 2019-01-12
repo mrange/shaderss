@@ -25,8 +25,8 @@ struct shader_configuration
 {
   shader_info   shader_info     ;
 
-  double        start_time      ;
-  double        speed           ;
+  float         start_time      ;
+  float         speed           ;
 
   std::wstring  image_path      ;
 };

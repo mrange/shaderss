@@ -40,6 +40,9 @@ GLuint      fsid              ;
 GLuint      vsid              ;
 GLuint      tid               ;
 
+float       start_time        ;
+float       speed      = 1    ;
+
 constexpr int gl_functions_count = 7;
 
 char const * const gl_names[gl_functions_count] =
@@ -312,8 +315,10 @@ void init_window (int nCmdShow)
 
 void init_opengl ()
 {
-  auto current_config = get__current_configuration ();
-  auto loaded_config  = load__configuration (current_config);
+  auto loaded_config  = load__configuration (get__current_configuration ());
+
+  start_time  = loaded_config.shader_configuration.start_time ;
+  speed       = loaded_config.shader_configuration.speed      ;
 
   hdc = CHECK (GetDC(hwnd));
 
@@ -368,10 +373,10 @@ void draw_gl (std::uint64_t now)
 
   float fparams[4]
   {
-    t         ,
-    width*1.f ,
-    height*1.f,
-    0         ,
+    start_time + t*speed  ,
+    width*1.f             ,
+    height*1.f            ,
+    0                     ,
   };
 
   oglProgramUniform4fv (fsid, 0, 1, fparams);
