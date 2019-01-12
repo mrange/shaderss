@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-char const * const get_fragment_shader ()
+char const * const get__fragment_shader ()
 {
   return R"SHADER(
 // -----------------------------------------------------------------------

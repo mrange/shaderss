@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-char const * const get_vertex_shader ()
+char const * const get__vertex_shader ()
 {
   return R"SHADER(
 #version 430

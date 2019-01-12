@@ -19,10 +19,10 @@
 
 #pragma comment(lib, "Opengl32")
 
-char const * const get_vertex_shader ();
-char const * const get_fragment_shader ();
+char const * const get__vertex_shader ();
+char const * const get__fragment_shader ();
 
-HINSTANCE get_hinstance () noexcept;
+HINSTANCE get__hinstance () noexcept;
 
 namespace
 {
@@ -203,8 +203,8 @@ ATOM register_class ()
   wcex.lpfnWndProc    = window_proc;
   wcex.cbClsExtra     = 0;
   wcex.cbWndExtra     = 0;
-  wcex.hInstance      = get_hinstance ();
-  wcex.hIcon          = LoadIcon (get_hinstance (), MAKEINTRESOURCE (IDI_SHADERSS));
+  wcex.hInstance      = get__hinstance ();
+  wcex.hIcon          = LoadIcon (get__hinstance (), MAKEINTRESOURCE (IDI_SHADERSS));
   wcex.hCursor        = LoadCursor (nullptr, IDC_ARROW);
   wcex.hbrBackground  = (HBRUSH) GetStockObject(BLACK_BRUSH);
   wcex.lpszMenuName   = nullptr;
@@ -227,7 +227,7 @@ void init_window (int nCmdShow)
     , CW_USEDEFAULT
     , nullptr
     , nullptr
-    , get_hinstance ()
+    , get__hinstance ()
     , nullptr
     ));
 
@@ -261,62 +261,6 @@ void init_window (int nCmdShow)
 
 void init_opengl ()
 {
-  auto wic = cocreate_instance<IWICImagingFactory> (CLSID_WICImagingFactory);
-
-  com_ptr<IWICBitmapDecoder> wic_decoder;
-
-  CHECK_HR (wic->CreateDecoderFromFilename(
-      LR"*(C:\temp\lotr.jpg)*"
-    , nullptr
-    , GENERIC_READ
-    , WICDecodeMetadataCacheOnDemand
-    , wic_decoder.out ()
-    ));
-
-  com_ptr<IWICBitmapFrameDecode> wic_frame_decoder;
-  CHECK_HR (wic_decoder->GetFrame (0, wic_frame_decoder.out ()));
-
-  com_ptr<IWICFormatConverter> wic_format_converter;
-  CHECK_HR (wic->CreateFormatConverter (wic_format_converter.out ()));
-
-  CHECK_HR (wic_format_converter->Initialize (
-      wic_frame_decoder.get ()
-    , GUID_WICPixelFormat24bppRGB
-    , WICBitmapDitherTypeNone
-    , nullptr
-    , 0.F
-    , WICBitmapPaletteTypeCustom
-    ));
-
-  UINT wic_width = 0;
-  UINT wic_height = 0;
-  CHECK_HR (wic_format_converter->GetSize (&wic_width, &wic_height));
-
-  auto stride = wic_width*3;
-
-  std::vector<BYTE> pixels;
-  pixels.resize (stride*wic_height);
-
-  WICRect wic_rect { 0, 0, wic_width, wic_height };
-
-  CHECK_HR (wic_format_converter->CopyPixels (&wic_rect, 3*wic_width, pixels.size (), &pixels.front ()));
-
-  std::vector<BYTE> row;
-  row.resize (stride);
-
-  for (auto y = 0U; y < wic_height/2; ++y)
-  {
-    auto from = y;
-    auto to   = wic_height - y - 1;
-
-    auto pb   = pixels.begin ();
-    auto rb   = row.begin ();
-
-    std::copy (pb + from*stride , pb + from*stride + stride , rb              );
-    std::copy (pb + to*stride   , pb + to*stride + stride   , pb + from*stride);
-    std::copy (rb               , rb + stride               , pb + to*stride  );
-  }
-
   hdc = CHECK (GetDC(hwnd));
 
   auto pf = CHECK (ChoosePixelFormat (hdc,&pfd));
@@ -339,8 +283,8 @@ void init_opengl ()
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 //  glGenerateMipmap(GL_TEXTURE_2D);
 
-  auto vsh = get_vertex_shader ();
-  auto fsh = get_fragment_shader ();
+  auto vsh = get__vertex_shader ();
+  auto fsh = get__fragment_shader ();
 
   vsid = oglCreateShaderProgramv (GL_VERTEX_SHADER, 1, &vsh);
   fsid = oglCreateShaderProgramv (GL_FRAGMENT_SHADER, 1, &fsh);
@@ -385,7 +329,7 @@ int show_screen_saver (int nCmdShow, bool ssm)
 
   init_opengl ();
 
-  HACCEL hAccelTable = LoadAccelerators (get_hinstance (), MAKEINTRESOURCE (IDC_SHADERSS));
+  HACCEL hAccelTable = LoadAccelerators (get__hinstance (), MAKEINTRESOURCE (IDC_SHADERSS));
 
   MSG msg;
 

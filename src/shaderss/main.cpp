@@ -22,7 +22,10 @@ namespace
 HINSTANCE hinst;
 }
 
-HINSTANCE get_hinstance () noexcept { return hinst; }
+HINSTANCE get__hinstance () noexcept 
+{ 
+  return hinst; 
+}
 
 int show_screen_saver (int nCmdShow, bool screen_saver_mode);
 

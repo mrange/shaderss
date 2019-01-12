@@ -12,6 +12,16 @@
 #define CHECK(expr) check (expr, (__FILE__ "(" STRINGIFY(__LINE__) "): Check failed for - " #expr))
 #define CHECK_HR(expr) check_hr (expr, (__FILE__ "(" STRINGIFY(__LINE__) "): Check hr failed for - " #expr))
 
+struct unit_t
+{
+};
+unit_t unit;
+
+struct empty_t
+{
+};
+empty_t empty;
+
 std::string utf8_encode (const std::wstring &wstr);
 
 template<typename T>
@@ -70,6 +80,11 @@ struct com_ptr
   {
   }
 
+  com_ptr (empty_t) noexcept
+    : ptr (nullptr)
+  {
+  }
+
   ~com_ptr () noexcept
   {
     if (ptr)
@@ -79,7 +94,7 @@ struct com_ptr
     }
   }
 
-  com_ptr (T* p) noexcept
+  explicit com_ptr (T* p) noexcept
     : ptr (p)
   {
     if (ptr)
