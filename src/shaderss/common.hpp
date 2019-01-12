@@ -2,11 +2,17 @@
 
 #include <windows.h>
 
+#include <exception>
+#include <stdexcept>
+#include <string>
+
 #define STRINGIFY_(x) #x
 #define STRINGIFY(x) STRINGIFY_(x)
 
 #define CHECK(expr) check (expr, (__FILE__ "(" STRINGIFY(__LINE__) "): Check failed for - " #expr))
 #define CHECK_HR(expr) check_hr (expr, (__FILE__ "(" STRINGIFY(__LINE__) "): Check hr failed for - " #expr))
+
+std::string utf8_encode (const std::wstring &wstr);
 
 template<typename T>
 auto check (T && v, char const * msg)
@@ -20,15 +26,7 @@ auto check (T && v, char const * msg)
   return std::forward<T> (v);
 }
 
-auto check_hr (HRESULT hr, char const * msg)
-{
-  if (FAILED(hr))
-  {
-    throw std::runtime_error (msg);
-  }
-
-  return hr;
-}
+HRESULT check_hr (HRESULT hr, char const * msg);
 
 template<typename T>
 struct com_out_ptr;

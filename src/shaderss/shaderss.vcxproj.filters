@@ -8,10 +8,13 @@
     <ClInclude Include="common.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="shaderss.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="vertex_shader.cpp" />
     <ClCompile Include="fragment_shader.cpp" />
+    <ClCompile Include="config.cpp" />
+    <ClCompile Include="screen_saver.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="common.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="shaderss.ico" />
