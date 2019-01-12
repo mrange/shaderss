@@ -728,8 +728,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
       , license__cc3
       , L"Inferred license to be CC3 because the sample wasn't clear on license"
       , L"Amazing looking Voronoi lattice over an image."
-      , shader__4dj3Wy__mandelbrot_with_orbit_traps
-      , false
+      , shader__Mld3Rn__perspex_web_lattice
+      , true
     },
   };
 
@@ -894,7 +894,7 @@ std::vector<BYTE> loaded_shader_configuration::get__image_bits ()
 
   auto dim        = get__image_dimensions ();
   auto wic_width  = dim.first;
-  auto wic_height = dim.first;
+  auto wic_height = dim.second;
 
   auto stride = wic_width*3;
 
