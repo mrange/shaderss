@@ -15,12 +15,12 @@
 struct unit_t
 {
 };
-unit_t unit;
+extern unit_t unit;
 
 struct empty_t
 {
 };
-empty_t empty;
+extern empty_t empty;
 
 std::string utf8_encode (const std::wstring &wstr);
 
@@ -134,6 +134,11 @@ struct com_ptr
     swap (that);
 
     return *this;
+  }
+
+  bool operator! () const noexcept
+  {
+    return !ptr;
   }
 
   void swap (com_ptr & cp) noexcept

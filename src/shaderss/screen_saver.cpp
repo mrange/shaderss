@@ -16,11 +16,9 @@
 #include "glext.h"
 
 #include "common.hpp"
+#include "config.hpp"
 
 #pragma comment(lib, "Opengl32")
-
-char const * const get__vertex_shader ();
-char const * const get__fragment_shader ();
 
 HINSTANCE get__hinstance () noexcept;
 
@@ -83,6 +81,59 @@ PIXELFORMATDESCRIPTOR const pfd =
 
 WCHAR const window_title[]      = L"Shader Screen Saver"; // The title bar text
 WCHAR const window_class_name[] = L"SHADER_SS"          ; // the main window class name
+
+char const vertex_shader[] = R"SHADER(
+#version 430
+
+layout (location=0) in vec2 inVer;
+out vec2 p;
+
+out gl_PerVertex
+{
+  vec4 gl_Position;
+};
+
+
+void main()
+{
+  gl_Position=vec4(inVer,0.0,1.0);
+  p=inVer;
+}
+)SHADER";
+
+char const fragment_shader_prelude[] = R"SHADER(
+// -----------------------------------------------------------------------
+// BEGIN - Common prelude
+// -----------------------------------------------------------------------
+#version 430
+
+precision mediump float;
+
+layout (location=0) uniform vec4 fpar[];
+layout (location=0) out vec4 co;
+uniform sampler2D iChannel0;
+
+in vec2 p;
+
+vec2 iResolution = vec2(1.0);
+float iTime = 1.0;
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord);
+
+void main()
+{
+  iTime = fpar[0].x;
+  iResolution.x = fpar[0].y;
+  iResolution.y = fpar[0].z;
+  vec2 pp = (p + 1.0)*0.5*iResolution.xy;
+
+  mainImage(co, pp);
+}
+// -----------------------------------------------------------------------
+// END - Common prelude
+// -----------------------------------------------------------------------
+
+)SHADER";
 
 int check_link_status (int id, char const * msg)
 {
@@ -261,6 +312,9 @@ void init_window (int nCmdShow)
 
 void init_opengl ()
 {
+  auto current_config = get__current_configuration ();
+  auto loaded_config  = load__configuration (current_config);
+
   hdc = CHECK (GetDC(hwnd));
 
   auto pf = CHECK (ChoosePixelFormat (hdc,&pfd));
@@ -276,15 +330,23 @@ void init_opengl ()
     gl_functions[i] = CHECK (wglGetProcAddress(gl_names[i]));
   }
 
-  glGenTextures (1, &tid);
-  glBindTexture (GL_TEXTURE_2D, tid);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, wic_width, wic_height, 0, GL_RGB, GL_UNSIGNED_BYTE, &pixels.front ());
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//  glGenerateMipmap(GL_TEXTURE_2D);
+  if (!!loaded_config.image_converter)
+  {
+    auto dim    = loaded_config.get__image_dimensions ();
+    auto pixels = loaded_config.get__image_bits ();
+    glGenTextures (1, &tid);
+    glBindTexture (GL_TEXTURE_2D, tid);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, dim.first, dim.second, 0, GL_RGB, GL_UNSIGNED_BYTE, &pixels.front ());
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  //  glGenerateMipmap(GL_TEXTURE_2D);
+  }
 
-  auto vsh = get__vertex_shader ();
-  auto fsh = get__fragment_shader ();
+  std::string shader_source = fragment_shader_prelude;
+  shader_source += loaded_config.shader_configuration.shader_info.shader_source;
+
+  auto vsh = vertex_shader;
+  auto fsh = shader_source.c_str ();
 
   vsid = oglCreateShaderProgramv (GL_VERTEX_SHADER, 1, &vsh);
   fsid = oglCreateShaderProgramv (GL_FRAGMENT_SHADER, 1, &fsh);

@@ -368,9 +368,10 @@ shader_infos const & get__shader_infos ()
 shader_configuration get__current_configuration ()
 {
   // TODO:
+  auto & sis = get__shader_infos ();
   return 
   {
-      get__shader_infos ()[0]
+      sis[0]
     , 0.0
     , 1.0
     , L""

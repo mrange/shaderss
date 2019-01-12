@@ -2,6 +2,9 @@
 
 #include "common.hpp"
 
+unit_t unit;
+empty_t empty;
+
 HRESULT check_hr (HRESULT hr, char const * msg)
 {
   if (FAILED(hr))
