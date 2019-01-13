@@ -2,7 +2,7 @@
 #include "resource.h"
 
 #include <windows.h>
-#include <wincodec.h> 
+#include <wincodec.h>
 #include <GL/gl.h>
 
 #include <algorithm>

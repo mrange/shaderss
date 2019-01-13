@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <wincodec.h> 
+#include <wincodec.h>
 
 #include "common.hpp"
 

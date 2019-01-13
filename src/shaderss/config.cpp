@@ -21,16 +21,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	vec2 z = p;
 	float f = 4.;
 	float g = 4.;
-	
-	for( int i=0; i<24; i++ ) 
+
+	for( int i=0; i<24; i++ )
 	{
 		float w = float(i)*1.32457+iTime;
-		vec2 z1 = vec2(2.*cos(w),2.*sin(w));		   
+		vec2 z1 = vec2(2.*cos(w),2.*sin(w));
 		z = vec2( z.x*z.x-z.y*z.y, 2.0*z.x*z.y ) + p;
 		f = min( f, abs(dot(z-p,z-p) -.004*float(i)));
 		g = min( g, dot(z-z1,z-z1));
 	}
-	
+
 	f = 1.0+log(f)/15.0;
 	g = 1.0+log(g)/8.0;
 
@@ -43,22 +43,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 /*
 	Perspex Web Lattice
 	-------------------
-	
+
 	I felt that Shadertoy didn't have enough Voronoi examples, so I made another one. :) I'm
-	not exactly sure what it's supposed to be... My best guess it that an Alien race with no 
+	not exactly sure what it's supposed to be... My best guess it that an Alien race with no
 	common sense designed a monitor system with physics defying materials. :)
 
 	Technically speaking, there's not much to it. It's just some raymarched 2nd order Voronoi.
-	The dark perspex-looking web lattice is created by manipulating the Voronoi value slightly 
+	The dark perspex-looking web lattice is created by manipulating the Voronoi value slightly
 	and giving the effected region an ID value so as to color it differently, but that's about
 	it. The details are contained in the "heightMap" function.
 
-	There's also some subtle edge detection in order to give the example a slight comic look. 
-	3D geometric edge detection doesn't really differ a great deal in concept from 2D pixel 
-	edge detection, but it obviously involves more processing power. However, it's possible to 
-	combine the edge detection with the normal calculation and virtually get it for free. Kali 
+	There's also some subtle edge detection in order to give the example a slight comic look.
+	3D geometric edge detection doesn't really differ a great deal in concept from 2D pixel
+	edge detection, but it obviously involves more processing power. However, it's possible to
+	combine the edge detection with the normal calculation and virtually get it for free. Kali
 	uses it to great effect in his "Fractal Land" example. It's also possible to do a
-	tetrahedral version... I think Nimitz and some others may have done it already. Anyway, 
+	tetrahedral version... I think Nimitz and some others may have done it already. Anyway,
 	you can see how it's done in the "nr" (normal) function.
 
 	Geometric edge related examples:
@@ -72,7 +72,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	Voronoi mesh related:
 
     // I haven't really looked into this, but it's interesting.
-	Weaved Voronoi - FabriceNeyret2 
+	Weaved Voronoi - FabriceNeyret2
     https://www.shadertoy.com/view/ltsXRM
 
 */
@@ -85,12 +85,12 @@ int id = 0; // Object ID - Red perspex: 0; Black lattice: 1.
 // Tri-Planar blending function. Based on an old Nvidia writeup:
 // GPU Gems 3 - Ryan Geiss: https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch01.html
 vec3 tex3D( sampler2D tex, in vec3 p, in vec3 n ){
-   
+
     n = max((abs(n) - .2), .001);
     n /= (n.x + n.y + n.z ); // Roughly normalized.
-    
+
 	p = (texture(tex, p.yz)*n.x + texture(tex, p.zx)*n.y + texture(tex, p.xy)*n.z).xyz;
-    
+
     // Loose sRGB to RGB conversion to counter final value gamma correction...
     // in case you're wondering.
     return p*p;
@@ -100,9 +100,9 @@ vec3 tex3D( sampler2D tex, in vec3 p, in vec3 n ){
 // Compact, self-contained version of IQ's 3D value noise function. I have a transparent noise
 // example that explains it, if you require it.
 float n3D(vec3 p){
-    
+
 	const vec3 s = vec3(7, 157, 113);
-	vec3 ip = floor(p); p -= ip; 
+	vec3 ip = floor(p); p -= ip;
     vec4 h = vec4(0., s.yz, s.y + s.z) + dot(ip, s);
     p = p*p*(3. - 2.*p); //p *= p*p*(p*(p * 6. - 15.) + 10.);
     h = mix(fract(sin(h)*43758.5453), fract(sin(h + s.x)*43758.5453), p.x);
@@ -111,67 +111,67 @@ float n3D(vec3 p){
 }
 
 // vec2 to vec2 hash.
-vec2 hash22(vec2 p) { 
+vec2 hash22(vec2 p) {
 
     // Faster, but doesn't disperse things quite as nicely. However, when framerate
-    // is an issue, and it often is, this is a good one to use. Basically, it's a tweaked 
-    // amalgamation I put together, based on a couple of other random algorithms I've 
+    // is an issue, and it often is, this is a good one to use. Basically, it's a tweaked
+    // amalgamation I put together, based on a couple of other random algorithms I've
     // seen around... so use it with caution, because I make a tonne of mistakes. :)
     float n = sin(dot(p, vec2(41, 289)));
-    //return fract(vec2(262144, 32768)*n); 
-    
+    //return fract(vec2(262144, 32768)*n);
+
     // Animated.
-    p = fract(vec2(262144, 32768)*n); 
-    // Note the ".45," insted of ".5" that you'd expect to see. When edging, it can open 
-    // up the cells ever so slightly for a more even spread. In fact, lower numbers work 
-    // even better, but then the random movement would become too restricted. Zero would 
+    p = fract(vec2(262144, 32768)*n);
+    // Note the ".45," insted of ".5" that you'd expect to see. When edging, it can open
+    // up the cells ever so slightly for a more even spread. In fact, lower numbers work
+    // even better, but then the random movement would become too restricted. Zero would
     // give you square cells.
-    return sin( p*6.2831853 + iTime )*.45 + .5; 
-    
+    return sin( p*6.2831853 + iTime )*.45 + .5;
+
 }
 
 // 2D 2nd-order Voronoi: Obviously, this is just a rehash of IQ's original. I've tidied
-// up those if-statements. Since there's less writing, it should go faster. That's how 
+// up those if-statements. Since there's less writing, it should go faster. That's how
 // it works, right? :)
 //
 float Voronoi(in vec2 p){
-    
+
 	vec2 g = floor(p), o; p -= g;
-	
+
 	vec3 d = vec3(1); // 1.4, etc. "d.z" holds the distance comparison value.
-    
+
 	for(int y = -1; y <= 1; y++){
 		for(int x = -1; x <= 1; x++){
-            
+
 			o = vec2(x, y);
             o += hash22(g + o) - p;
-            
-			d.z = dot(o, o); 
+
+			d.z = dot(o, o);
             // More distance metrics.
             //o = abs(o);
-            //d.z = max(o.x*.8666 + o.y*.5, o.y);// 
+            //d.z = max(o.x*.8666 + o.y*.5, o.y);//
             //d.z = max(o.x, o.y);
             //d.z = (o.x*.7 + o.y*.7);
-            
+
             d.y = max(d.x, min(d.y, d.z));
-            d.x = min(d.x, d.z); 
-                       
+            d.x = min(d.x, d.z);
+
 		}
 	}
-	
+
     return max(d.y/1.2 - d.x*1., 0.)/1.2;
     //return d.y - d.x; // return 1.-d.x; // etc.
-    
+
 }
 
 // The height map values. In this case, it's just a Voronoi variation. By the way, I could
 // optimize this a lot further, but it's not a particularly taxing distance function, so
 // I've left it in a more readable state.
 float heightMap(vec3 p){
-    
+
     id =0;
     float c = Voronoi(p.xy*4.); // The fiery bit.
-    
+
     // For lower values, reverse the surface direction, smooth, then
     // give it an ID value of one. Ie: this is the black web-like
     // portion of the surface.
@@ -184,11 +184,11 @@ float heightMap(vec3 p){
 // Obviously, you don't want the values to be too large. The one's here account for about 10%
 // of the distance between the plane and the camera.
 float m(vec3 p){
-   
+
     float h = heightMap(p); // texture(iChannel0, p.xy/2.).x; // Texture work too.
-    
+
     return 1. - p.z - h*.1;
-    
+
 }
 
 /*
@@ -196,7 +196,7 @@ float m(vec3 p){
 vec3 nr(in vec3 p){
 
     // Note the slightly increased sampling distance, to alleviate artifacts due to hit point inaccuracies.
-    vec2 e = vec2(0.005, -0.005); 
+    vec2 e = vec2(0.005, -0.005);
     return normalize(e.xyy * m(p + e.xyy) + e.yyx * m(p + e.yyx) + e.yxy * m(p + e.yxy) + e.xxx * m(p + e.xxx));
 }
 */
@@ -210,8 +210,8 @@ vec3 nr(in vec3 p) {
 */
 
 // The normal function with some edge detection rolled into it.
-vec3 nr(vec3 p, inout float edge) { 
-	
+vec3 nr(vec3 p, inout float edge) {
+
     vec2 e = vec2(.005, 0);
 
     // Take some distance function measurements from either side of the hit point on all three axes.
@@ -219,18 +219,18 @@ vec3 nr(vec3 p, inout float edge) {
 	float d3 = m(p + e.yxy), d4 = m(p - e.yxy);
 	float d5 = m(p + e.yyx), d6 = m(p - e.yyx);
 	float d = m(p)*2.;	// The hit point itself - Doubled to cut down on calculations. See below.
-     
+
     // Edges - Take a geometry measurement from either side of the hit point. Average them, then see how
     // much the value differs from the hit point itself. Do this for X, Y and Z directions. Here, the sum
-    // is used for the overall difference, but there are other ways. Note that it's mainly sharp surface 
+    // is used for the overall difference, but there are other ways. Note that it's mainly sharp surface
     // curves that register a discernible difference.
     edge = abs(d1 + d2 - d) + abs(d3 + d4 - d) + abs(d5 + d6 - d);
     //edge = max(max(abs(d1 + d2 - d), abs(d3 + d4 - d)), abs(d5 + d6 - d)); // Etc.
-    
-    // Once you have an edge value, it needs to normalized, and smoothed if possible. How you 
+
+    // Once you have an edge value, it needs to normalized, and smoothed if possible. How you
     // do that is up to you. This is what I came up with for now, but I might tweak it later.
     edge = smoothstep(0., 1., sqrt(edge/e.x*2.));
-	
+
     // Return the normal.
     // Standard, normalized gradient mearsurement.
     return normalize(vec3(d1 - d2, d3 - d4, d5 - d6));
@@ -243,13 +243,13 @@ float cAO(in vec3 p, in vec3 n)
 {
 	float sca = 3., occ = 0.;
     for(float i=0.; i<5.; i++){
-    
-        float hr = .01 + i*.5/4.;        
+
+        float hr = .01 + i*.5/4.;
         float dd = m(n * hr + p);
         occ += (hr - dd)*sca;
         sca *= 0.7;
     }
-    return clamp(1.0 - occ, 0., 1.);    
+    return clamp(1.0 - occ, 0., 1.);
 }
 */
 
@@ -262,7 +262,7 @@ vec3 rotHue(vec3 p, float a){
     mat3 hr = mat3(0.299,  0.587,  0.114,  0.299,  0.587,  0.114,  0.299,  0.587,  0.114) +
         	  mat3(0.701, -0.587, -0.114, -0.299,  0.413, -0.114, -0.300, -0.588,  0.886) * cs.x +
         	  mat3(0.168,  0.330, -0.497, -0.328,  0.035,  0.292,  1.250, -1.050, -0.203) * cs.y;
-							 
+
     return clamp(p*hr, 0., 1.);
 }
 */
@@ -273,132 +273,132 @@ vec3 rotHue(vec3 p, float a){
 // environmental reflections.
 //
 // More sophisticated environment mapping:
-// UI easy to integrate - XT95    
+// UI easy to integrate - XT95
 // https://www.shadertoy.com/view/ldKSDm
 vec3 eMap(vec3 rd, vec3 sn){
-    
+
     vec3 sRd = rd; // Save rd, just for some mixing at the end.
-    
+
     // Add a time component, scale, then pass into the noise function.
     rd.xy -= iTime*.25;
     rd *= 3.;
-    
+
     //vec3 tx = tex3D(iChannel0, rd/3., sn);
     //float c = dot(tx*tx, vec3(.299, .587, .114));
-    
+
     float c = n3D(rd)*.57 + n3D(rd*2.)*.28 + n3D(rd*4.)*.15; // Noise value.
     c = smoothstep(0.5, 1., c); // Darken and add contast for more of a spotlight look.
-    
+
     //vec3 col = vec3(c, c*c, c*c*c*c).zyx; // Simple, warm coloring.
     vec3 col = vec3(min(c*1.5, 1.), pow(c, 2.5), pow(c, 12.)).zyx; // More color.
-    
+
     // Mix in some more red to tone it down and return.
-    return mix(col, col.yzx, sRd*.25+.25); 
-    
+    return mix(col, col.yzx, sRd*.25+.25);
+
 }
 
 void mainImage(out vec4 c, vec2 u){
 
     // Unit direction ray, camera origin and light position.
-    vec3 r = normalize(vec3(u - iResolution.xy*.5, iResolution.y)), 
+    vec3 r = normalize(vec3(u - iResolution.xy*.5, iResolution.y)),
          o = vec3(0), l = o + vec3(0, 0, -1);
-   
+
     // Rotate the canvas. Note that sine and cosine are kind of rolled into one.
     vec2 a = sin(vec2(1.570796, 0) + iTime/8.); // Fabrice's observation.
     r.xy = mat2(a, -a.y, a.x) * r.xy;
 
-    
+
     // Standard raymarching routine. Raymarching a slightly perturbed back plane front-on
     // doesn't usually require many iterations. Unless you rely on your GPU for warmth,
     // this is a good thing. :)
     float d, t = 0.;
-    
+
     for(int i=0; i<32;i++){
-        
+
         d = m(o + r*t);
         // There isn't really a far plane to go beyond, but it's there anyway.
         if(abs(d)<0.001 || t>FAR) break;
         t += d*.7;
 
     }
-    
+
     t = min(t, FAR);
-    
+
     // Set the initial scene color to black.
     c = vec4(0);
-    
+
     float edge = 0.; // Edge value - to be passed into the normal.
-    
+
     if(t<FAR){
-    
+
         vec3 p = o + r*t, n = nr(p, edge);
 
         l -= p; // Light to surface vector. Ie: Light direction vector.
         d = max(length(l), 0.001); // Light to surface distance.
         l /= d; // Normalizing the light direction vector.
 
-        
- 
+
+
         // Obtain the height map (destorted Voronoi) value, and use it to slightly
         // shade the surface. Gives a more shadowy appearance.
         float hm = heightMap(p);
-        
+
         // Texture value at the surface. Use the heighmap value above to distort the
         // texture a bit.
         vec3 tx = tex3D(iChannel0, (p*2. + hm*.2), n);
         //tx = floor(tx*15.999)/15.; // Quantized cartoony colors, if you get bored enough.
 
         c.xyz = vec3(1.)*(hm*.8 + .2); // Applying the shading to the final color.
-        
+
         c.xyz *= vec3(1.5)*tx; // Multiplying by the texture value and lightening.
-        
-        
-        // Color the cell part with a fiery (I incorrectly spell it firey all the time) 
+
+
+        // Color the cell part with a fiery (I incorrectly spell it firey all the time)
         // palette and the latticey web thing a very dark color.
         //
         c.x = dot(c.xyz, vec3(.299, .587, .114)); // Grayscale.
         if (id==0) c.xyz *= vec3(min(c.x*1.5, 1.), pow(c.x, 5.), pow(c.x, 24.))*2.;
         else c.xyz *= .1;
-        
+
         // Hue rotation, for anyone who's interested.
         //c.xyz = rotHue(c.xyz, mod(iTime/16., 6.283));
-       
-        
+
+
         float df = max(dot(l, n), 0.); // Diffuse.
         float sp = pow(max(dot(reflect(-l, n), -r), 0.), 32.); // Specular.
-        
+
         if(id == 1) sp *= sp; // Increase specularity on the dark lattice.
-        
+
 		// Applying some diffuse and specular lighting to the surface.
         c.xyz = c.xyz*(df + .75) + vec3(1, .97, .92)*sp + vec3(.5, .7, 1)*pow(sp, 32.);
-        
+
         // Add the fake environmapping. Give the dark surface less reflectivity.
         vec3 em = eMap(reflect(r, n), n); // Fake environment mapping.
         if(id == 1) em *= .5;
         c.xyz += em;
-        
+
         // Edges.
         //if(id == 0)c.xyz += edge*.1; // Lighter edges.
         c.xyz *= 1. - edge*.8; // Darker edges.
-        
-        // Attenuation, based on light to surface distance.    
+
+        // Attenuation, based on light to surface distance.
         c.xyz *= 1./(1. + d*d*.125);
-        
+
         // AO - The effect is probably too subtle, in this case, so we may as well
         // save some cycles.
         //c.xyz *= cAO(p, n);
-        
+
     }
-    
-    
+
+
     // Vignette.
     //vec2 uv = u/iResolution.xy;
     //c.xyz = mix(c.xyz, vec3(0, 0, .5), .1 -pow(16.*uv.x*uv.y*(1.-uv.x)*(1.-uv.y), 0.25)*.1);
-    
+
     // Apply some statistically unlikely (but close enough) 2.0 gamma correction. :)
     c = vec4(sqrt(clamp(c.xyz, 0., 1.)), 1.);
-    
-    
+
+
 }
 )SHADER";
 
@@ -477,9 +477,9 @@ float impulse1(in vec3 p, out vec3 col, out float ref, out float trans, out vec3
   trans  = 0.9;
 
   float time = iTime - ACTIVATETIME;
-    
+
   absorb = mix(inert, -(1.0 + 0.25*cos(time/8.0))*radiant, linstep(0.0, 1.0, time));
-    
+
   return fIcosahedron(p, 1.0);
 }
 
@@ -488,9 +488,9 @@ float distanceField(in vec3 p, out vec3 col, out float ref, out float trans, out
   pR(p.yz, -PI/4.0);
   pR(p.xy, iTime/3.0);
   pR(p.yz, PI/4.0);
-  
+
   float i = impulse1(p, col, ref, trans, absorb);
-    
+
   return i;
 }
 
@@ -510,9 +510,9 @@ vec3 getSkyColor(vec3 rayDir)
   final += vec3(0.8)* pow(saturate(1.0 - roundBox*0.5), 6.0);
 
   float time = iTime-ACTIVATETIME;
-    
+
   vec3 light = linstep(0.0, 0.5, time)*(1.0 - linstep(2.0, 6.0, time))*lightCol1;
-    
+
   final += light*pow(ld1, 20.0);
   return final;
 }
@@ -543,9 +543,9 @@ float rayMarch(in float dmod, in vec3 ro, inout vec3 rd, float mint, float minst
     t += max(distance, minstep);
     rep = i;
   }
-    
+
   if (distance > TOLERANCE) return MAX_RAY_LENGTH;
-    
+
   return t;
 }
 
@@ -639,7 +639,7 @@ vec3 render(in vec3 ro, in vec3 rd)
     {
       beer = exp(-absorb*t);
     }
-      
+
     final      += (1.0 - trans)*ragg*beer*mcol;
     ragg       *= trans*beer;
 
@@ -662,7 +662,7 @@ vec3 render(in vec3 ro, in vec3 rd)
 vec3 getSample(in vec2 p)
 {
   if (length(p) > 1.0) return vec3(0.0);
-   
+
   vec3 ro  = vec3(3.0, 0.0, 0.0);
 
   vec3 la  = vec3(0.0);
@@ -700,7 +700,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 #endif
 
   float fadeIn = linstep(0.0, FADEINTIME, iTime);
-    
+
   fragColor = vec4(postProcess(col, p)*fadeIn, 1.0);
 }
 )SHADER";
@@ -726,14 +726,14 @@ vec2 hash( vec2 p ) {
 float noise( in vec2 p ) {
     const float K1 = 0.366025404; // (sqrt(3)-1)/2;
     const float K2 = 0.211324865; // (3-sqrt(3))/6;
-	vec2 i = floor(p + (p.x+p.y)*K1);	
+	vec2 i = floor(p + (p.x+p.y)*K1);
     vec2 a = p - i + (i.x+i.y)*K2;
     vec2 o = (a.x>a.y) ? vec2(1.0,0.0) : vec2(0.0,1.0); //vec2 of = 0.5 + 0.5*vec2(sign(a.x-a.y), sign(a.y-a.x));
     vec2 b = a - o + K2;
 	vec2 c = a - 1.0 + 2.0*K2;
     vec3 h = max(0.5-vec3(dot(a,a), dot(b,b), dot(c,c) ), 0.0 );
 	vec3 n = h*h*h*h*vec3( dot(a,hash(i+0.0)), dot(b,hash(i+o)), dot(c,hash(i+1.0)));
-    return dot(n, vec3(70.0));	
+    return dot(n, vec3(70.0));
 }
 
 float fbm(vec2 n) {
@@ -750,10 +750,10 @@ float fbm(vec2 n) {
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     vec2 p = fragCoord.xy / iResolution.xy;
-	vec2 uv = p*vec2(iResolution.x/iResolution.y,1.0);    
+	vec2 uv = p*vec2(iResolution.x/iResolution.y,1.0);
     float time = iTime * speed;
     float q = fbm(uv * cloudscale * 0.5);
-    
+
     //ridged noise shape
 	float r = 0.0;
 	uv *= cloudscale;
@@ -764,7 +764,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         uv = m*uv + time;
 		weight *= 0.7;
     }
-    
+
     //noise shape
 	float f = 0.0;
     uv = p*vec2(iResolution.x/iResolution.y,1.0);
@@ -776,9 +776,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         uv = m*uv + time;
 		weight *= 0.6;
     }
-    
+
     f *= r + f;
-    
+
     //noise colour
     float c = 0.0;
     time = iTime * speed * 2.0;
@@ -791,7 +791,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         uv = m*uv + time;
 		weight *= 0.6;
     }
-    
+
     //noise ridge colour
     float c1 = 0.0;
     time = iTime * speed * 3.0;
@@ -804,16 +804,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         uv = m*uv + time;
 		weight *= 0.6;
     }
-	
+
     c += c1;
-    
+
     vec3 skycolour = mix(skycolour2, skycolour1, p.y);
     vec3 cloudcolour = vec3(1.1, 1.1, 0.9) * clamp((clouddark + cloudlight*c), 0.0, 1.0);
-   
+
     f = cloudcover + cloudalpha*f*r;
-    
+
     vec3 result = mix(skycolour, clamp(skytint * skycolour + cloudcolour, 0.0, 1.0), clamp(f + c, 0.0, 1.0));
-    
+
 	fragColor = vec4( result, 1.0 );
 }
 )SHADER";
@@ -1192,37 +1192,37 @@ float sdBox( in vec3 p, in vec3 b, in float r, out vec3 color ) {
 }
 
 float de( in vec3 p, in float r, out vec3 color ) {
-    
+
     // wrap world around camera path
     vec3 wrap = camPath(p.z);
     vec3 wrapDeriv = normalize(camPathDeriv(p.z));
     p.xy -= wrap.xy;
     p -= wrapDeriv*dot(vec3(p.xy, 0), wrapDeriv)*0.5*vec3(1,1,-1);
-    
+
     // change the fractal rotation along an axis
     float q=p.z*0.074;
-    
+
     // accumulate scale and distance
     float s = 1.0;
     float d = 9e9;
-    
+
     // accumulate color
     vec3 albedo = vec3(0);
     float colorAcc = 0.0;
-    
+
     for (float i = 0.5 ; i < 4.0 ; i += 1.14124) {
         p.xy *= rot(-i*1.5*q);
         p.xyz = p.zxy;
         p.xy = abs(fract(p.xy)*SCALE-SCALE*0.5);
         p.z *= SCALE;
-        
+
         s /= SCALE;
-        
+
         vec3 cube = vec3(0);
         float dist = sdBox(p, vec3(1.07, 0.54+i*0.5, 4.47+i*0.1), r, cube)*s;
         float co = cube.x*0.2+cube.y*0.4+cube.z*0.8;
         vec3 col = clamp(vec3(co*i*0.1), vec3(0), vec3(0.6));
-        
+
         float alpha = max(0.001, smoothstep(r, -r, dist));
         albedo += col*alpha;
         colorAcc += alpha;
@@ -1233,14 +1233,14 @@ float de( in vec3 p, in float r, out vec3 color ) {
             d = max(d,-dist);
         }
     }
-    
+
     color = albedo/colorAcc;
-    
+
     return d;
 }
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
-    
+
     float z = iTime*1.0;
     vec3 from = camPath(z);
     vec2 uv = (fragCoord - iResolution.xy*0.5)/iResolution.y;
@@ -1248,12 +1248,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     vec3 right = normalize(cross(forward, vec3(0, 1, 0)));
     vec3 up = cross(right, forward);
     vec3 dir = normalize(forward/tan(FOV*0.5)+right*uv.x+up*uv.y);
-    
+
     if (iMouse.z > 0.5) {
         dir.yz *= rot((iMouse.y-iResolution.y*0.5)*0.01);
         dir.xz *= rot((iMouse.x-iResolution.x*0.5)*-0.01);
     }
-    
+
    	// get the sine of the angular extent of a pixel
     float sinPix = sin(FOV / iResolution.y);
     // accumulate color front to back
@@ -1265,11 +1265,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         float r = totdist*sinPix;
         vec3 color = vec3(1);
         float dist = de(p, r, color);
-        
+
         // compute color
         float ao = 1.0 - float(i)/100.0;
         color *= ao*ao;
-        
+
         // cone trace the surface
         float prox = dist / r;
         float alpha = clamp(prox * -0.5 + 0.5, 0.0, 1.0);
@@ -1277,16 +1277,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         // accumulate color
         acc.rgb += acc.a * (alpha*color.rgb);
         acc.a *= (1.0 - alpha);
-        
+
         // hit a surface, stop
         if (acc.a < 0.01) {
             break;
         }
-        
+
         // continue forward
         totdist += abs(dist*0.9);
 	}
-    
+
     // add fog
     fragColor.rgb = clamp(acc.rgb, vec3(0), vec3(1));
     float fog = clamp(totdist/20.0, 0.0, 1.0);
@@ -1296,7 +1296,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     // vignetting
     vec2 vig = fragCoord/iResolution.xy*2.0-1.0;
     fragColor.rgb = mix(fragColor.rgb, vec3(0), dot(vig, vig)*0.2);
-    
+
 	fragColor.a = 1.0;
 }
 )SHADER";
@@ -1313,27 +1313,27 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 // Antialiasing level. Make it 2 or 3 if you have a fast machine
 #define AA 1
 
-vec4 orb; 
+vec4 orb;
 
 float map( vec3 p, float s )
 {
 	float scale = 1.0;
 
-	orb = vec4(1000.0); 
-	
+	orb = vec4(1000.0);
+
 	for( int i=0; i<8;i++ )
 	{
 		p = -1.0 + 2.0*fract(0.5*p+0.5);
 
 		float r2 = dot(p,p);
-		
+
         orb = min( orb, vec4(abs(p),r2) );
-		
+
 		float k = s/r2;
 		p     *= k;
 		scale *= k;
 	}
-	
+
 	return 0.25*abs(p.y)/scale;
 }
 
@@ -1344,7 +1344,7 @@ float trace( in vec3 ro, in vec3 rd, float s )
     for( int i=0; i<200; i++ )
     {
 	    float precis = 0.001 * t;
-        
+
 	    float h = map( ro+rd*t, s );
         if( h<precis||t>maxd ) break;
         t += h;
@@ -1359,15 +1359,15 @@ vec3 calcNormal( in vec3 pos, in float t, in float s )
     float precis = 0.001 * t;
 
     vec2 e = vec2(1.0,-1.0)*precis;
-    return normalize( e.xyy*map( pos + e.xyy, s ) + 
-					  e.yyx*map( pos + e.yyx, s ) + 
-					  e.yxy*map( pos + e.yxy, s ) + 
+    return normalize( e.xyy*map( pos + e.xyy, s ) +
+					  e.yyx*map( pos + e.yyx, s ) +
+					  e.yxy*map( pos + e.yxy, s ) +
                       e.xxx*map( pos + e.xxx, s ) );
 }
 
 vec3 render( in vec3 ro, in vec3 rd, in float anim )
 {
-    // trace	
+    // trace
     vec3 col = vec3(0.0);
     float t = trace( ro, rd, anim );
     if( t>0.0 )
@@ -1388,7 +1388,7 @@ vec3 render( in vec3 ro, in vec3 rd, in float anim )
         brdf += 1.0*vec3(1.00,1.00,1.00)*key*ao;
         brdf += 1.0*vec3(0.40,0.40,0.40)*bac*ao;
 
-        // material		
+        // material
         vec3 rgb = vec3(1.0);
         rgb = mix( rgb, vec3(1.0,0.80,0.2), clamp(6.0*tra.y,0.0,1.0) );
         rgb = mix( rgb, vec3(1.0,0.55,0.0), pow(clamp(1.0-2.0*tra.z,0.0,1.0),8.0) );
@@ -1404,7 +1404,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     float time = iTime*0.25 + 0.01*iMouse.x;
     float anim = 1.1 + 0.5*smoothstep( -0.3, 0.3, cos(0.1*iTime) );
-    
+
     vec3 tot = vec3(0.0);
     #if AA>1
     for( int jj=0; jj<AA; jj++ )
@@ -1428,10 +1428,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
         tot += render( ro, rd, anim );
     }
-    
+
     tot = tot/float(AA*AA);
-    
-	fragColor = vec4( tot, 1.0 );	
+
+	fragColor = vec4( tot, 1.0 );
 
 }
 
@@ -1527,7 +1527,7 @@ float blend =0.0;
 float d = 0.0;
 float m = 0.0;
 float kalitime =0.;
-float depth = 0.;     
+float depth = 0.;
 float prec =0.;
 const float scene = 35.;
 
@@ -1542,7 +1542,7 @@ vec3 rotXaxis(vec3 p, float rad)
 	return p;
 }
 
-vec3 rotYaxis(vec3 p, float rad) 
+vec3 rotYaxis(vec3 p, float rad)
 {
 	float x2 = cos(rad) * p.x - sin(rad) * p.z;
 	float z2 = sin(rad) * p.x + cos(rad) * p.z;
@@ -1551,7 +1551,7 @@ vec3 rotYaxis(vec3 p, float rad)
 	return p;
 }
 
-vec3 rotZaxis(vec3 p, float rad) 
+vec3 rotZaxis(vec3 p, float rad)
 {
 	float x2 = cos(rad) * p.x - sin(rad) * p.y;
 	float y2 = sin(rad) * p.x + cos(rad) * p.y;
@@ -1592,17 +1592,17 @@ float smin( float a, float b, float k )
 
 
 // length
-float length2(vec2 p) 
-{ 
-  	return dot(p, p); 
+float length2(vec2 p)
+{
+  	return dot(p, p);
 }
 
 // worley effect
-float worley(vec2 p) 
+float worley(vec2 p)
 {
 	float d = 1.;
 	for (int xo = -1; xo <= 1; ++xo)
-	for (int yo = -1; yo <= 1; ++yo) 
+	for (int yo = -1; yo <= 1; ++yo)
     {
 		vec2 tp = floor(p) + vec2(xo, yo);
 		d = min(d, length2(p - tp - vec2(rand1(tp))));
@@ -1610,7 +1610,7 @@ float worley(vec2 p)
 	return 3.*exp(-4.*abs(2.*d - 1.));
 }
 
-float fworley(vec2 p) 
+float fworley(vec2 p)
 {
 	return sqrt(sqrt(sqrt(worley(p*32. + 4.3 + iTime*.250) * sqrt(worley(p * 64. + 5.3 + iTime * -.125)) * sqrt(sqrt(worley(p * -128. +7.3))))));
 }
@@ -1619,12 +1619,12 @@ float fworley(vec2 p)
 // menger
 float NewMenger(vec3 z)
 {
-	float Scale = 3.0;				
-	vec3 Offset = vec3(1.0,1.0,1.0);		
-	int Iterations = 6;					
-	int ColorIterations = 3;	
+	float Scale = 3.0;
+	vec3 Offset = vec3(1.0,1.0,1.0);
+	int Iterations = 6;
+	int ColorIterations = 3;
 
-    for(int n = 0; n < 6; n++) 
+    for(int n = 0; n < 6; n++)
 	{
 	z.z*=1.+0.2*sin(iTime/4.0)+0.1;
 		z = abs(z);
@@ -1636,7 +1636,7 @@ float NewMenger(vec3 z)
 
 		if (n<ColorIterations) orbitTrap = min(orbitTrap, (vec4(abs(z),dot(z,z))));
 
-	}				
+	}
 	return abs(length(z) ) * pow(Scale, float(-Iterations-1));
 }
 
@@ -1645,9 +1645,9 @@ float NewMenger(vec3 z)
 // mandelbulb (Fractalforums.com)
 float Mandelbulb(vec3 p)
 {
-	float Scale = 3.0;					
-	int Iterations = 6;			
-	int ColorIterations = 1;	
+	float Scale = 3.0;
+	int Iterations = 6;
+	int ColorIterations = 1;
 	float parachute=(1.-min(1.8*abs(sin((iTime-5.0)*3.1415/scene)),1.0)); // Fallschirm
 	parachute = smoothstep(0.0,1.0,parachute)*35.0;
 	vec3 w = p;
@@ -1667,32 +1667,32 @@ float Mandelbulb(vec3 p)
 		float k4 = x2 - y2 + z2;
 		w =  vec3(64.0*x*y*z*(x2-z2)*k4*(x4-6.0*x2*z2+z4)*k1*k2,-16.0*y2*k3*k4*k4 + k1*k1,-8.0*y*k4*(x4*x4 - 28.0*x4*x2*z2 + 70.0*x4*z4 - 28.0*x2*z2*z4 + z4*z4)*k1*k2);
 		w-=p;
-		w = rotYaxis(w,sin(iTime*0.14));	
-		w = rotZaxis(w,cos(iTime*0.2));	
+		w = rotYaxis(w,sin(iTime*0.14));
+		w = rotZaxis(w,cos(iTime*0.2));
 		orbitTrap = min(orbitTrap, abs(vec4(p.x*w.z, p.y*w.x, 0., 0.)));
 		if (i>=ColorIterations+2) orbitTrap = vec4(0.0);
-	} 
+	}
 	return  .5*log(r)*r/dr;
 }
 
 // kalibox (Kali / Fractalforums.com)
-float Kalibox(vec3 pos) 
+float Kalibox(vec3 pos)
 {
-	float Scale = 1.84;						
-	int Iterations = 14;			
-	int ColorIterations = 3;		
-	float MinRad2 = 0.34;	
-	vec3 Trans = vec3(0.076,-1.86,0.036);			
-	vec3 Julia = vec3(-0.66,-1.2+(kalitime/80.),-0.66);	
+	float Scale = 1.84;
+	int Iterations = 14;
+	int ColorIterations = 3;
+	float MinRad2 = 0.34;
+	vec3 Trans = vec3(0.076,-1.86,0.036);
+	vec3 Julia = vec3(-0.66,-1.2+(kalitime/80.),-0.66);
 	vec4 scale = vec4(Scale, Scale, Scale, abs(Scale)) / MinRad2;
 	float absScalem1 = abs(Scale - 1.0);
 	float AbsScaleRaisedTo1mIters = pow(abs(Scale), float(1-Iterations));
-    vec4 p = vec4(pos,1), p0 = vec4(Julia,1); 
+    vec4 p = vec4(pos,1), p0 = vec4(Julia,1);
 	for (int i=0; i<14; i++)
 		{
 			p.xyz=abs(p.xyz)+Trans;
 			float r2 = dot(p.xyz, p.xyz);
-			p *= clamp(max(MinRad2/r2, MinRad2), 0.0, 1.0); 
+			p *= clamp(max(MinRad2/r2, MinRad2), 0.0, 1.0);
 			p = p*scale + p0;
 			if (i<ColorIterations) orbitTrap = min(orbitTrap, abs(vec4(p.xyz,r2)));
 		}
@@ -1700,9 +1700,9 @@ float Kalibox(vec3 pos)
 }
 
 // balls and cube
-float Balls(vec3 pos) 
+float Balls(vec3 pos)
 {
-	m = length(max(abs(rotYaxis(rotXaxis(pos+vec3(0.0,-0.3,0.0),iTime),iTime*0.3))-vec3(0.35,0.35,0.35),0.0))-0.02; 
+	m = length(max(abs(rotYaxis(rotXaxis(pos+vec3(0.0,-0.3,0.0),iTime),iTime*0.3))-vec3(0.35,0.35,0.35),0.0))-0.02;
 	m = smin (m, length(pos+vec3(0.0,-0.40,1.2+0.5*sin(0.8*iTime+0.0)))-0.4,7.4);
 	m = smin (m, length(pos+vec3(0.0,-0.40,-1.2-0.5*sin(0.8*iTime+0.4)))-0.4,7.4);
 	m = smin (m, length(pos+vec3(-1.2-0.5*sin(0.8*iTime+0.8),-0.40,0.0))-0.4,7.4);
@@ -1714,12 +1714,12 @@ float Balls(vec3 pos)
 }
 
 // plane
-float sdPlane(in vec3 p) 
+float sdPlane(in vec3 p)
 {
 	return p.y+(0.025*sin(p.x*10.  +1.4*iTime  ))+(0.025*sin(p.z*12.3*cos(0.4-p.x)+  1.6*iTime  ))-0.05;
 }
 
-// cylinder 
+// cylinder
 float sdCylinder( vec3 p, vec3 c )
 {
 	return length(p.xz-c.xy)-c.z;
@@ -1733,7 +1733,7 @@ float map(in vec3 p)
 	d = sdPlane(p);
 
 	if (efx == 0) {			// balls and cube
-	m = Balls(p); 
+	m = Balls(p);
 	}
 	if (efx == 1) {			// milky menger
 	m = NewMenger(rotYaxis(rotXaxis(p-vec3(0.0,sin(iTime/0.63)+0.2,0.0),0.15*iTime),0.24*iTime));
@@ -1750,13 +1750,13 @@ float map(in vec3 p)
 	float kali = Kalibox(rotYaxis(q,0.04*iTime));
 	m = max(kali,-sdCylinder(p,vec3(0.0,0.0,0.30+0.1*sin(iTime*0.2))) );
 	}
-	d = sminPoly (m, d, 0.04); 
+	d = sminPoly (m, d, 0.04);
    	return d;
 }
 
 
 // normal calculation
-vec3 calcNormal(in vec3 p) 
+vec3 calcNormal(in vec3 p)
 {
     vec3 e = vec3(0.001, 0.0, 0.0);
     vec3 nor = vec3(map(p + e.xyy) - map(p - e.xyy),  map(p + e.yxy) - map(p - e.yxy),  map(p + e.yyx) - map(p - e.yyx));
@@ -1764,13 +1764,13 @@ vec3 calcNormal(in vec3 p)
 }
 
 // cast
-float castRay(in vec3 ro, in vec3 rd, in float maxt) 
+float castRay(in vec3 ro, in vec3 rd, in float maxt)
 {
     float precis = prec;
     float h = precis * 2.0;
     float t = depth;
 
-    for(int i = 0; i < 122; i++) 
+    for(int i = 0; i < 122; i++)
 	{
         if(abs(h) < precis || t > maxt) break;
         orbitTrap = vec4(10.0);
@@ -1781,7 +1781,7 @@ float castRay(in vec3 ro, in vec3 rd, in float maxt)
 }
 
 // softshadow (IQ)
-float softshadow(in vec3 ro, in vec3 rd, in float mint, in float maxt, in float k) 
+float softshadow(in vec3 ro, in vec3 rd, in float mint, in float maxt, in float k)
 {
     float sh = 1.0;
     float t = mint;
@@ -1823,7 +1823,7 @@ float snow(vec3 direction)
 	float DEPTH = direction.y*direction.y-0.3;
 	float WIDTH =0.1;
 	float SPEED = 0.1;
-	for (int i=0;i<10;i++) 
+	for (int i=0;i<10;i++)
 	{
 		float fi = float(i);
 		vec2 q = uvx*(1.+fi*DEPTH);
@@ -1841,30 +1841,30 @@ float snow(vec3 direction)
 	return help;
 	}
 
-void mainImage( out vec4 fragColor, in vec2 fragCoord ) 
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    
-    if (iTime >=0. && iTime <=35. ) {efx=4; refleco=0; snowo=0;} 
-    if (iTime >35. && iTime <=70. ) {efx=0; refleco=1; snowo=1;}
-    if (iTime >70. && iTime <=105.) {efx=1; refleco=0; snowo=1;} 
-    if (iTime >105.&& iTime <=140.) {efx=3; refleco=0; snowo=1;} 
-    if (iTime >140.&& iTime <=175.) {efx=2; refleco=0; snowo=1;}  
-    if (iTime >175.&& iTime <=210.) {efx=4; refleco=0; snowo=0;}   
-    if (iTime >210.&& iTime <=245.) {efx=5; refleco=0; snowo=0;}  
 
-	blend=min(2.0*abs(sin((iTime+0.0)*3.1415/scene)),1.0); 
+    if (iTime >=0. && iTime <=35. ) {efx=4; refleco=0; snowo=0;}
+    if (iTime >35. && iTime <=70. ) {efx=0; refleco=1; snowo=1;}
+    if (iTime >70. && iTime <=105.) {efx=1; refleco=0; snowo=1;}
+    if (iTime >105.&& iTime <=140.) {efx=3; refleco=0; snowo=1;}
+    if (iTime >140.&& iTime <=175.) {efx=2; refleco=0; snowo=1;}
+    if (iTime >175.&& iTime <=210.) {efx=4; refleco=0; snowo=0;}
+    if (iTime >210.&& iTime <=245.) {efx=5; refleco=0; snowo=0;}
+
+	blend=min(2.0*abs(sin((iTime+0.0)*3.1415/scene)),1.0);
     if (iTime >245.) blend = 0.;
     vec2 uv = fragCoord.xy / iResolution.xy;
     vec2 p = uv * 2.0 - 1.0;
 	p.x *= iResolution.x / iResolution.y;
 	float theta = sin(iTime*0.03) * 3.14 * 2.0;
-    float x = 3.0 * cos(theta)+0.007*rand1(fragCoord.xy); 
-    float z = 3.0 * sin(theta)+0.007*rand2(fragCoord.xy); 
+    float x = 3.0 * cos(theta)+0.007*rand1(fragCoord.xy);
+    float z = 3.0 * sin(theta)+0.007*rand2(fragCoord.xy);
 	vec3 ro; // camera
-	
+
 	if (efx==0) {
 	prec = 0.001;
-	ro = vec3(x*0.2+1.0, 5.0, z*2.0-3.); 	// camera balls and cube  
+	ro = vec3(x*0.2+1.0, 5.0, z*2.0-3.); 	// camera balls and cube
 	}
 	if (efx==1) {
 	prec = 0.002;
@@ -1888,7 +1888,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	}
 	if (efx==5) {
 	prec = 0.004;
-	kalitime = 210.+175.; 
+	kalitime = 210.+175.;
 	ro = vec3(0, 3.8, 0.0001);   			// camera swirl
 	}
 
@@ -1905,9 +1905,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float t = castRay(ro, rd, 12.0);
 	vec3 pos = ro + rd *t;
 	vec3 nor = calcNormal(pos);
-	vec3 lig;	
+	vec3 lig;
 	if (efx==4 || efx ==5 )  	lig = normalize(vec3(-0.4*sin(iTime*0.15), 1.0, 0.5));
-	else if (efx==3)		  	lig = normalize(vec3(-0.1*sin(iTime*0.2), 0.2, 0.4*sin(iTime*0.1)));	
+	else if (efx==3)		  	lig = normalize(vec3(-0.1*sin(iTime*0.2), 0.2, 0.4*sin(iTime*0.1)));
 	else 						lig = normalize(vec3(-0.4, 0.7, 0.5));
 	float dif = clamp(dot(lig, nor), 0.0, 1.0);
 	float spec = pow(clamp(dot(reflect(rd, nor), lig), 0.0, 1.0), 16.0);
@@ -1915,7 +1915,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	if (efx == 1 || efx == 5) sh = softshadow(pos, lig, 0.02, 20.0, 7.0);
 	vec3 color = getColor();
 	col = ((0.8*dif+ spec) + 0.35*color);
-	if (efx !=1 && efx != 5) sh = softshadow(pos, lig, 0.02, 20.0, 7.0); 
+	if (efx !=1 && efx != 5) sh = softshadow(pos, lig, 0.02, 20.0, 7.0);
 	col = col*clamp(sh, 0.0, 1.0);
 
 
@@ -1938,16 +1938,16 @@ if (refleco == 1) {
 // postprocessing
 float klang1=0.75;
 vec2 uv2=-0.3+2.*fragCoord.xy/iResolution.xy;
-col-=0.20*(1.-klang1)*rand1(uv2.xy*iTime);							
-col*=.9+0.20*(1.-klang1)*sin(10.*iTime+uv2.x*iResolution.x);	
-col*=.9+0.20*(1.-klang1)*sin(10.*iTime+uv2.y*iResolution.y);	
+col-=0.20*(1.-klang1)*rand1(uv2.xy*iTime);
+col*=.9+0.20*(1.-klang1)*sin(10.*iTime+uv2.x*iResolution.x);
+col*=.9+0.20*(1.-klang1)*sin(10.*iTime+uv2.y*iResolution.y);
 float Scr=1.-dot(uv2,uv2)*0.15;
 vec2 uv3=fragCoord.xy/iResolution.xy;
 float worl = fworley(uv3 * iResolution.xy / 2100.);
-worl *= exp(-length2(abs(2.*uv3 - 1.))); 
+worl *= exp(-length2(abs(2.*uv3 - 1.)));
 worl *= abs(1.-0.6*dot(2.*uv3-1.,2.*uv3-1.));
 if (efx==4) col += vec3(0.4*worl,0.35*worl,0.25*worl);
-if (efx==5)  col += vec3(0.2*worl); 
+if (efx==5)  col += vec3(0.2*worl);
 float g2 = (blend/2.)+0.39;
 float g1 = ((1.-blend)/2.);
 if (uv3.y >=g2+0.11) col*=0.0;
@@ -1967,7 +1967,7 @@ if (snowo == 1) fragColor = (vec4(col*1.0*Scr-1.6*snow(cv), 1.0)*blend)*vec4(1.0
 else fragColor = vec4(col*1.0*Scr, 1.0)*blend;
 }
 )SHADER";
-  shader_infos all_shader_infos 
+  shader_infos all_shader_infos
   {
     {
         L"lldBD8"
@@ -2060,7 +2060,7 @@ else fragColor = vec4(col*1.0*Scr, 1.0)*blend;
       , false
     },
   };
- 
+
   std::wstring get__reg_value (
     HKEY            parent
   , wchar_t const * id
@@ -2142,9 +2142,9 @@ std::size_t index_of__shader (std::wstring const & id)
   auto i__find_shader = std::find_if (
       all_shader_infos.begin ()
     , all_shader_infos.end ()
-    , [&id] (auto && si) 
-    { 
-      return si.id == id; 
+    , [&id] (auto && si)
+    {
+      return si.id == id;
     });
 
   if (i__find_shader != all_shader_infos.end ())

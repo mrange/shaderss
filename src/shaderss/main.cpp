@@ -3,7 +3,7 @@
 
 #include <windows.h>
 #include <commctrl.h>
-#include <wincodec.h> 
+#include <wincodec.h>
 #include <GL/gl.h>
 
 #include <algorithm>
@@ -30,9 +30,9 @@ namespace
   HINSTANCE hinst;
 }
 
-HINSTANCE get__hinstance () noexcept 
-{ 
-  return hinst; 
+HINSTANCE get__hinstance () noexcept
+{
+  return hinst;
 }
 
 extern "C"
