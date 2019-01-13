@@ -17,6 +17,9 @@
 
 #include "common.hpp"
 
+extern int show__screen_saver (int nCmdShow, bool screen_saver_mode);
+extern int show__config_dialog (HWND parent);
+
 namespace
 {
   HINSTANCE hinst;
@@ -26,8 +29,6 @@ HINSTANCE get__hinstance () noexcept
 { 
   return hinst; 
 }
-
-int show_screen_saver (int nCmdShow, bool screen_saver_mode);
 
 extern "C"
 {
@@ -68,18 +69,21 @@ int APIENTRY wWinMain (
     else if (match[3].matched)
     {
       // /dev - Show screen saver in window
-      show_screen_saver (nCmdShow, false);
+      show__screen_saver (nCmdShow, false);
       return 0;
     }
     else if (match[4].matched)
     {
       // /c - Show config modal
+
+      show__config_dialog (nullptr);
+
       return 1;
     }
     else if (match[5].matched)
     {
       // /s - Show screen saver in full screen
-      show_screen_saver (nCmdShow, true);
+      show__screen_saver (nCmdShow, true);
       return 0;
     }
     else if (match[6].matched)

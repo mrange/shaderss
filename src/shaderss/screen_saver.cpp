@@ -20,7 +20,7 @@
 
 #pragma comment(lib, "Opengl32")
 
-HINSTANCE get__hinstance () noexcept;
+extern HINSTANCE get__hinstance () noexcept;
 
 namespace
 {
@@ -386,7 +386,7 @@ void main()
 
 }
 
-int show_screen_saver (int nCmdShow, bool ssm)
+int show__screen_saver (int nCmdShow, bool ssm)
 {
   screen_saver_mode = ssm;
 
