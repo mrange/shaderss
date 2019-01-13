@@ -119,7 +119,7 @@ uniform sampler2D iChannel0;
 in vec2 p;
 
 // TODO: How to make these uniform
-vec2 iMouse       = vec2(0.0);
+vec3 iMouse       = vec3(0.0);
 vec2 iResolution  = vec2(1.0);
 float iTime       = 1.0;
 

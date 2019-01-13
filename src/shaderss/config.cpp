@@ -1168,6 +1168,805 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 }
 )SHADER";
 
+  char const shader__XdcfR8__fractal_thingy_flythrough[] = R"SHADER(
+#define PI 3.14159265359
+#define rot(a) mat2(cos(a+PI*vec4(0,1.5,0.5,0)))
+#define SCALE 4.0
+#define FOV 1.0
+
+//f (x)=sin(a*x)*b
+//f'(x)=a*b*cos(a*x)
+#define PATHA vec2(0.1147, 0.2093)
+#define PATHB vec2(13.0, 3.0)
+vec3 camPath( float z ) {
+    return vec3(sin(z*PATHA)*PATHB, z);
+}
+vec3 camPathDeriv( float z ) {
+    return vec3(PATHA*PATHB*cos(PATHA*z), 1.0);
+}
+
+float sdBox( in vec3 p, in vec3 b, in float r, out vec3 color ) {
+   	vec3 d = abs(p) - b;
+    color = normalize(smoothstep(vec3(-r), vec3(0.0), d));
+	return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+}
+
+float de( in vec3 p, in float r, out vec3 color ) {
+    
+    // wrap world around camera path
+    vec3 wrap = camPath(p.z);
+    vec3 wrapDeriv = normalize(camPathDeriv(p.z));
+    p.xy -= wrap.xy;
+    p -= wrapDeriv*dot(vec3(p.xy, 0), wrapDeriv)*0.5*vec3(1,1,-1);
+    
+    // change the fractal rotation along an axis
+    float q=p.z*0.074;
+    
+    // accumulate scale and distance
+    float s = 1.0;
+    float d = 9e9;
+    
+    // accumulate color
+    vec3 albedo = vec3(0);
+    float colorAcc = 0.0;
+    
+    for (float i = 0.5 ; i < 4.0 ; i += 1.14124) {
+        p.xy *= rot(-i*1.5*q);
+        p.xyz = p.zxy;
+        p.xy = abs(fract(p.xy)*SCALE-SCALE*0.5);
+        p.z *= SCALE;
+        
+        s /= SCALE;
+        
+        vec3 cube = vec3(0);
+        float dist = sdBox(p, vec3(1.07, 0.54+i*0.5, 4.47+i*0.1), r, cube)*s;
+        float co = cube.x*0.2+cube.y*0.4+cube.z*0.8;
+        vec3 col = clamp(vec3(co*i*0.1), vec3(0), vec3(0.6));
+        
+        float alpha = max(0.001, smoothstep(r, -r, dist));
+        albedo += col*alpha;
+        colorAcc += alpha;
+
+        if (i < 2.0) {
+        	d = min(d, dist);
+        } else {
+            d = max(d,-dist);
+        }
+    }
+    
+    color = albedo/colorAcc;
+    
+    return d;
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+    
+    float z = iTime*1.0;
+    vec3 from = camPath(z);
+    vec2 uv = (fragCoord - iResolution.xy*0.5)/iResolution.y;
+    vec3 forward = normalize(camPathDeriv(z));
+    vec3 right = normalize(cross(forward, vec3(0, 1, 0)));
+    vec3 up = cross(right, forward);
+    vec3 dir = normalize(forward/tan(FOV*0.5)+right*uv.x+up*uv.y);
+    
+    if (iMouse.z > 0.5) {
+        dir.yz *= rot((iMouse.y-iResolution.y*0.5)*0.01);
+        dir.xz *= rot((iMouse.x-iResolution.x*0.5)*-0.01);
+    }
+    
+   	// get the sine of the angular extent of a pixel
+    float sinPix = sin(FOV / iResolution.y);
+    // accumulate color front to back
+    vec4 acc = vec4(0, 0, 0, 1);
+
+    float totdist = 0.0;
+    for (int i = 0 ; i < 100 ; i++) {
+		vec3 p = from + totdist * dir;
+        float r = totdist*sinPix;
+        vec3 color = vec3(1);
+        float dist = de(p, r, color);
+        
+        // compute color
+        float ao = 1.0 - float(i)/100.0;
+        color *= ao*ao;
+        
+        // cone trace the surface
+        float prox = dist / r;
+        float alpha = clamp(prox * -0.5 + 0.5, 0.0, 1.0);
+
+        // accumulate color
+        acc.rgb += acc.a * (alpha*color.rgb);
+        acc.a *= (1.0 - alpha);
+        
+        // hit a surface, stop
+        if (acc.a < 0.01) {
+            break;
+        }
+        
+        // continue forward
+        totdist += abs(dist*0.9);
+	}
+    
+    // add fog
+    fragColor.rgb = clamp(acc.rgb, vec3(0), vec3(1));
+    float fog = clamp(totdist/20.0, 0.0, 1.0);
+    fragColor.rgb = mix(fragColor.rgb, vec3(0.4, 0.5, 0.7), fog);
+    // gamma correction
+    fragColor.rgb = pow(fragColor.rgb, vec3(1.0/2.2));
+    // vignetting
+    vec2 vig = fragCoord/iResolution.xy*2.0-1.0;
+    fragColor.rgb = mix(fragColor.rgb, vec3(0), dot(vig, vig)*0.2);
+    
+	fragColor.a = 1.0;
+}
+)SHADER";
+
+  char const shader__4ds3zn__apollonian [] = R"SHADER(
+// Created by inigo quilez - iq/2013
+// License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+//
+// I can't recall where I learnt about this fractal.
+//
+// Coloring and fake occlusions are done by orbit trapping, as usual.
+
+
+// Antialiasing level. Make it 2 or 3 if you have a fast machine
+#define AA 1
+
+vec4 orb; 
+
+float map( vec3 p, float s )
+{
+	float scale = 1.0;
+
+	orb = vec4(1000.0); 
+	
+	for( int i=0; i<8;i++ )
+	{
+		p = -1.0 + 2.0*fract(0.5*p+0.5);
+
+		float r2 = dot(p,p);
+		
+        orb = min( orb, vec4(abs(p),r2) );
+		
+		float k = s/r2;
+		p     *= k;
+		scale *= k;
+	}
+	
+	return 0.25*abs(p.y)/scale;
+}
+
+float trace( in vec3 ro, in vec3 rd, float s )
+{
+	float maxd = 30.0;
+    float t = 0.01;
+    for( int i=0; i<200; i++ )
+    {
+	    float precis = 0.001 * t;
+        
+	    float h = map( ro+rd*t, s );
+        if( h<precis||t>maxd ) break;
+        t += h;
+    }
+
+    if( t>maxd ) t=-1.0;
+    return t;
+}
+
+vec3 calcNormal( in vec3 pos, in float t, in float s )
+{
+    float precis = 0.001 * t;
+
+    vec2 e = vec2(1.0,-1.0)*precis;
+    return normalize( e.xyy*map( pos + e.xyy, s ) + 
+					  e.yyx*map( pos + e.yyx, s ) + 
+					  e.yxy*map( pos + e.yxy, s ) + 
+                      e.xxx*map( pos + e.xxx, s ) );
+}
+
+vec3 render( in vec3 ro, in vec3 rd, in float anim )
+{
+    // trace	
+    vec3 col = vec3(0.0);
+    float t = trace( ro, rd, anim );
+    if( t>0.0 )
+    {
+        vec4 tra = orb;
+        vec3 pos = ro + t*rd;
+        vec3 nor = calcNormal( pos, t, anim );
+
+        // lighting
+        vec3  light1 = vec3(  0.577, 0.577, -0.577 );
+        vec3  light2 = vec3( -0.707, 0.000,  0.707 );
+        float key = clamp( dot( light1, nor ), 0.0, 1.0 );
+        float bac = clamp( 0.2 + 0.8*dot( light2, nor ), 0.0, 1.0 );
+        float amb = (0.7+0.3*nor.y);
+        float ao = pow( clamp(tra.w*2.0,0.0,1.0), 1.2 );
+
+        vec3 brdf  = 1.0*vec3(0.40,0.40,0.40)*amb*ao;
+        brdf += 1.0*vec3(1.00,1.00,1.00)*key*ao;
+        brdf += 1.0*vec3(0.40,0.40,0.40)*bac*ao;
+
+        // material		
+        vec3 rgb = vec3(1.0);
+        rgb = mix( rgb, vec3(1.0,0.80,0.2), clamp(6.0*tra.y,0.0,1.0) );
+        rgb = mix( rgb, vec3(1.0,0.55,0.0), pow(clamp(1.0-2.0*tra.z,0.0,1.0),8.0) );
+
+        // color
+        col = rgb*brdf*exp(-0.2*t);
+    }
+
+    return sqrt(col);
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    float time = iTime*0.25 + 0.01*iMouse.x;
+    float anim = 1.1 + 0.5*smoothstep( -0.3, 0.3, cos(0.1*iTime) );
+    
+    vec3 tot = vec3(0.0);
+    #if AA>1
+    for( int jj=0; jj<AA; jj++ )
+    for( int ii=0; ii<AA; ii++ )
+    #else
+    int ii = 1, jj = 1;
+    #endif
+    {
+        vec2 q = fragCoord.xy+vec2(float(ii),float(jj))/float(AA);
+        vec2 p = (2.0*q-iResolution.xy)/iResolution.y;
+
+        // camera
+        vec3 ro = vec3( 2.8*cos(0.1+.33*time), 0.4 + 0.30*cos(0.37*time), 2.8*cos(0.5+0.35*time) );
+        vec3 ta = vec3( 1.9*cos(1.2+.41*time), 0.4 + 0.10*cos(0.27*time), 1.9*cos(2.0+0.38*time) );
+        float roll = 0.2*cos(0.1*time);
+        vec3 cw = normalize(ta-ro);
+        vec3 cp = vec3(sin(roll), cos(roll),0.0);
+        vec3 cu = normalize(cross(cw,cp));
+        vec3 cv = normalize(cross(cu,cw));
+        vec3 rd = normalize( p.x*cu + p.y*cv + 2.0*cw );
+
+        tot += render( ro, rd, anim );
+    }
+    
+    tot = tot/float(AA*AA);
+    
+	fragColor = vec4( tot, 1.0 );	
+
+}
+
+void mainVR( out vec4 fragColor, in vec2 fragCoord, in vec3 fragRayOri, in vec3 fragRayDir )
+{
+    float time = iTime*0.25 + 0.01*iMouse.x;
+    float anim = 1.1 + 0.5*smoothstep( -0.3, 0.3, cos(0.1*iTime) );
+
+    vec3 col = render( fragRayOri + vec3(0.82,1.2,-0.3), fragRayDir, anim );
+    fragColor = vec4( col, 1.0 );
+}
+)SHADER";
+
+  char const shader__lsV3Rc__unmandelboxing [] = R"SHADER(
+precision mediump float;
+uniform vec4 I;
+
+vec3 Z(vec3 p,float a) {
+    return vec3(cos(a)*p.y+sin(a)*p.x,cos(a)*p.x-sin(a)*p.y,p.z);
+}
+
+float F(vec3 P) {
+    float R=sin((iTime+P.z)*.03176)*.45+.5,S=3.4312-sin(iTime*.001);
+    vec4 p=vec4(P,1),o=p,s=vec4(S,S,S,abs(S))/R;
+    for(int i=0;i<24;i++) {
+        if(i==3||i==7||i==11||i==15||i==19||i==23)R=sin(((iTime+P.z)*.01+float(i)*0.25*sin(iTime*.00012211154)*3.8)*3.176)*0.45+0.5;
+        p.xyz=clamp(p.xyz,-1.,1.)*2.-p.xyz;
+        float r2=dot(p.xyz,p.xyz);
+        if(r2>1000.)break;
+        p=p*clamp(max(R/r2,R),0.,1.)*s+o;
+    }
+    return((length(p.xyz)-abs(S-1.))/p.w-pow(abs(S),float(1-24)));
+}
+
+float D(vec3 p) {
+    vec3 c=vec3(10.,10.,8.);
+    p=mod(p,c)-.5*c;
+    vec3 q=abs(Z(p,p.z*3.1415/10.*4.));
+    float d2=max(q.z-10.,max((q.x*0.866025+q.y*0.5),q.y)-.08);
+    p=Z(p,p.z*3.1415/10.*(length(p.xy)-3.)*sin(iTime*.0001)*.8);
+    return max(F(p),-d2);
+}
+
+vec3 R(vec3 p,vec3 d) {
+    float td=0.,rd=0.;
+    for(int i=0;i<80;i++) {
+        if((rd=D(p))<pow(td,1.5)*.004)break;
+        td+=rd;
+        p+=d*rd;
+    }
+    float md=D(p),e=.0025;
+    vec3 n=normalize(vec3(D(p+vec3(e,0,0))-D(p-vec3(e,0,0)),D(p+vec3(0,e,0))-D(p-vec3(0,e,0)),D(p+vec3(0,0,e))-D(p-vec3(0,0,e))));
+    e*=.5;
+    float occ=1.+(D(p+n*.02+vec3(-e,0,0))+D(p+n*.02+vec3(+e,0,0))+D(p+n*.02+vec3(0,-e,0))+D(p+n*.02+vec3(0,e,0))+D(p+n*.02+vec3(0,0,-e))+D(p+n*.02+vec3(0,0,e))-.03)*20.;
+    occ=clamp(occ,0.,1.);
+    float br=(pow(clamp(dot(n,-normalize(d+vec3(.3,-.9,.4)))*.6+.4, 0.,1.),2.7)*.8+.2)*occ/(td*.5+1.);
+    float fog=clamp(1./(td*td*1.8+.4),0.,1.);
+    return mix(vec3(br,br/(td*td*.2+1.),br/(td+1.)),vec3(0.,0.,0.),1.-fog);
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+    vec2 f=fragCoord.xy;
+    vec3 d=vec3((f-vec2(iResolution/2.))/iResolution.y*2.,1.);
+    vec3 c=pow(R(vec3(5.,5.,iTime*.1),normalize(d*vec3(1.,1.,1.-(length(d.xy)*.9)))),vec3(.6,.6,.6));
+    //fragColor=vec4(c,1.);
+    //fragColor=vec4(pow(floor(c*vec3(8.,8.,4.)+fract(f.x/4.+f.y/2.)/2.)/(vec3(7.,7.,3.)),vec3(1.5,1.5,1.5)),1.);
+    vec3 scaledColour = c * vec3(8.,8.,4.);
+    //float ditherOffset = 0.;
+    float ditherOffset = fract(f.x/4.+f.y/2.)/1.5-.25;
+    ditherOffset *= 1.5;
+    //float ditherOffset = fract(f.x/2.)/4.+fract(f.y/2.)/2.;
+    fragColor=vec4(pow(floor(max(scaledColour+ditherOffset,0.))/vec3(7.,7.,3.),vec3(1.5,1.5,1.5)),1.);
+}
+)SHADER";
+
+  char const shader__4tc3zf__galvanize [] = R"SHADER(
+//***************************************************************************************************
+//
+// Galvanize / Alcatraz
+// Jochen "Virgill" Feldkoetter
+//
+// Intro for Nordlicht demoparty 2014      Shadertoy version
+//
+//***************************************************************************************************
+
+
+
+int efx = 0;
+int refleco = 0;
+int snowo = 0;
+vec4 orbitTrap = vec4(0.0);
+float blend =0.0;
+float d = 0.0;
+float m = 0.0;
+float kalitime =0.;
+float depth = 0.;     
+float prec =0.;
+const float scene = 35.;
+
+
+// Rotate
+vec3 rotXaxis(vec3 p, float rad)
+{
+	float z2 = cos(rad) * p.z - sin(rad) * p.y;
+	float y2 = sin(rad) * p.z + cos(rad) * p.y;
+	p.z = z2;
+	p.y = y2;
+	return p;
+}
+
+vec3 rotYaxis(vec3 p, float rad) 
+{
+	float x2 = cos(rad) * p.x - sin(rad) * p.z;
+	float z2 = sin(rad) * p.x + cos(rad) * p.z;
+	p.x = x2;
+	p.z = z2;
+	return p;
+}
+
+vec3 rotZaxis(vec3 p, float rad) 
+{
+	float x2 = cos(rad) * p.x - sin(rad) * p.y;
+	float y2 = sin(rad) * p.x + cos(rad) * p.y;
+	p.x = x2;
+	p.y = y2;
+	return p;
+}
+
+
+// noise functions
+float rand1(vec2 co)
+{
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+float rand2(vec2 co)
+{
+    return fract(cos(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+
+
+
+// polyomial smooth min (IQ)
+float sminPoly( float a, float b, float k )
+{
+    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
+    return mix( b, a, h ) - k*h*(1.0-h);
+}
+
+
+// exponential smooth min (IQ)
+float smin( float a, float b, float k )
+{
+    float res = exp( -k*a ) + exp( -k*b );
+    return -log( res )/k;
+}
+
+
+// length
+float length2(vec2 p) 
+{ 
+  	return dot(p, p); 
+}
+
+// worley effect
+float worley(vec2 p) 
+{
+	float d = 1.;
+	for (int xo = -1; xo <= 1; ++xo)
+	for (int yo = -1; yo <= 1; ++yo) 
+    {
+		vec2 tp = floor(p) + vec2(xo, yo);
+		d = min(d, length2(p - tp - vec2(rand1(tp))));
+	}
+	return 3.*exp(-4.*abs(2.*d - 1.));
+}
+
+float fworley(vec2 p) 
+{
+	return sqrt(sqrt(sqrt(worley(p*32. + 4.3 + iTime*.250) * sqrt(worley(p * 64. + 5.3 + iTime * -.125)) * sqrt(sqrt(worley(p * -128. +7.3))))));
+}
+
+
+// menger
+float NewMenger(vec3 z)
+{
+	float Scale = 3.0;				
+	vec3 Offset = vec3(1.0,1.0,1.0);		
+	int Iterations = 6;					
+	int ColorIterations = 3;	
+
+    for(int n = 0; n < 6; n++) 
+	{
+	z.z*=1.+0.2*sin(iTime/4.0)+0.1;
+		z = abs(z);
+		if (z.x<z.y){ z.xy = z.yx;}
+		if (z.x< z.z){ z.xz = z.zx;}
+		if (z.y<z.z){ z.yz = z.zy;}
+		z = Scale*z-Offset*(Scale-1.0);
+		if( z.z<-0.5*Offset.z*(Scale-1.0))  z.z+=Offset.z*(Scale-1.0);
+
+		if (n<ColorIterations) orbitTrap = min(orbitTrap, (vec4(abs(z),dot(z,z))));
+
+	}				
+	return abs(length(z) ) * pow(Scale, float(-Iterations-1));
+}
+
+
+
+// mandelbulb (Fractalforums.com)
+float Mandelbulb(vec3 p)
+{
+	float Scale = 3.0;					
+	int Iterations = 6;			
+	int ColorIterations = 1;	
+	float parachute=(1.-min(1.8*abs(sin((iTime-5.0)*3.1415/scene)),1.0)); // Fallschirm
+	parachute = smoothstep(0.0,1.0,parachute)*35.0;
+	vec3 w = p;
+	float dr = 1.0+parachute;
+	float r = 0.;
+    for (int i=0; i<6; ++i)
+	{
+    	r = length(w);
+		if (r>4.0) break;
+		dr*=pow(r, 7.)*8.+1.;
+		float x = w.x; float x2 = x*x; float x4 = x2*x2;
+		float y = w.y; float y2 = y*y; float y4 = y2*y2;
+		float z = w.z; float z2 = z*z; float z4 = z2*z2;
+		float k3 = x2 + z2;
+		float k2 = inversesqrt( pow(k3, 7.0) );
+		float k1 = x4 + y4 + z4 - 6.0*y2*z2 - 6.0*x2*y2 + 2.0*z2*x2;
+		float k4 = x2 - y2 + z2;
+		w =  vec3(64.0*x*y*z*(x2-z2)*k4*(x4-6.0*x2*z2+z4)*k1*k2,-16.0*y2*k3*k4*k4 + k1*k1,-8.0*y*k4*(x4*x4 - 28.0*x4*x2*z2 + 70.0*x4*z4 - 28.0*x2*z2*z4 + z4*z4)*k1*k2);
+		w-=p;
+		w = rotYaxis(w,sin(iTime*0.14));	
+		w = rotZaxis(w,cos(iTime*0.2));	
+		orbitTrap = min(orbitTrap, abs(vec4(p.x*w.z, p.y*w.x, 0., 0.)));
+		if (i>=ColorIterations+2) orbitTrap = vec4(0.0);
+	} 
+	return  .5*log(r)*r/dr;
+}
+
+// kalibox (Kali / Fractalforums.com)
+float Kalibox(vec3 pos) 
+{
+	float Scale = 1.84;						
+	int Iterations = 14;			
+	int ColorIterations = 3;		
+	float MinRad2 = 0.34;	
+	vec3 Trans = vec3(0.076,-1.86,0.036);			
+	vec3 Julia = vec3(-0.66,-1.2+(kalitime/80.),-0.66);	
+	vec4 scale = vec4(Scale, Scale, Scale, abs(Scale)) / MinRad2;
+	float absScalem1 = abs(Scale - 1.0);
+	float AbsScaleRaisedTo1mIters = pow(abs(Scale), float(1-Iterations));
+    vec4 p = vec4(pos,1), p0 = vec4(Julia,1); 
+	for (int i=0; i<14; i++)
+		{
+			p.xyz=abs(p.xyz)+Trans;
+			float r2 = dot(p.xyz, p.xyz);
+			p *= clamp(max(MinRad2/r2, MinRad2), 0.0, 1.0); 
+			p = p*scale + p0;
+			if (i<ColorIterations) orbitTrap = min(orbitTrap, abs(vec4(p.xyz,r2)));
+		}
+		return (    (length(p.xyz) - absScalem1) / p.w - AbsScaleRaisedTo1mIters    );
+}
+
+// balls and cube
+float Balls(vec3 pos) 
+{
+	m = length(max(abs(rotYaxis(rotXaxis(pos+vec3(0.0,-0.3,0.0),iTime),iTime*0.3))-vec3(0.35,0.35,0.35),0.0))-0.02; 
+	m = smin (m, length(pos+vec3(0.0,-0.40,1.2+0.5*sin(0.8*iTime+0.0)))-0.4,7.4);
+	m = smin (m, length(pos+vec3(0.0,-0.40,-1.2-0.5*sin(0.8*iTime+0.4)))-0.4,7.4);
+	m = smin (m, length(pos+vec3(-1.2-0.5*sin(0.8*iTime+0.8),-0.40,0.0))-0.4,7.4);
+	m = smin (m, length(pos+vec3(1.2+0.5*sin(0.8*iTime+1.2),-0.40,0.0))-0.4,7.4);
+	m = smin (m, length(pos+vec3(0.0,-1.6+0.5*-sin(0.8*iTime+1.6),0.0))-0.4,7.4);
+	//m+= klang1*(0.003*cos(50.*pos.x)+0.003*cos(50.*pos.y)); //distortion
+	orbitTrap = vec4(length(pos)-0.8*pos.z,length(pos)-0.8*pos.y,length(pos)-0.8*pos.x,0.0)*1.0;
+	return m;
+}
+
+// plane
+float sdPlane(in vec3 p) 
+{
+	return p.y+(0.025*sin(p.x*10.  +1.4*iTime  ))+(0.025*sin(p.z*12.3*cos(0.4-p.x)+  1.6*iTime  ))-0.05;
+}
+
+// cylinder 
+float sdCylinder( vec3 p, vec3 c )
+{
+	return length(p.xz-c.xy)-c.z;
+}
+
+
+// scene
+float map(in vec3 p)
+{
+	orbitTrap = vec4(10.0);
+	d = sdPlane(p);
+
+	if (efx == 0) {			// balls and cube
+	m = Balls(p); 
+	}
+	if (efx == 1) {			// milky menger
+	m = NewMenger(rotYaxis(rotXaxis(p-vec3(0.0,sin(iTime/0.63)+0.2,0.0),0.15*iTime),0.24*iTime));
+	}
+	if (efx == 2) {			// mandelbulb
+	m = Mandelbulb(rotYaxis(rotXaxis(p,iTime*0.1),0.21*iTime));
+	}
+	if (efx == 3) {			// kalibox
+	m = Kalibox(rotYaxis(rotXaxis(p,1.50),0.1*iTime));
+	}
+	if (efx == 4 || efx == 5) { // tunnel or swirl
+	vec3 c = vec3(2.0, 8.0, 2.0);
+	vec3 q = mod(p-vec3(1.0,0.1*iTime,1.0),c)-0.5*c;
+	float kali = Kalibox(rotYaxis(q,0.04*iTime));
+	m = max(kali,-sdCylinder(p,vec3(0.0,0.0,0.30+0.1*sin(iTime*0.2))) );
+	}
+	d = sminPoly (m, d, 0.04); 
+   	return d;
+}
+
+
+// normal calculation
+vec3 calcNormal(in vec3 p) 
+{
+    vec3 e = vec3(0.001, 0.0, 0.0);
+    vec3 nor = vec3(map(p + e.xyy) - map(p - e.xyy),  map(p + e.yxy) - map(p - e.yxy),  map(p + e.yyx) - map(p - e.yyx));
+    return normalize(nor);
+}
+
+// cast
+float castRay(in vec3 ro, in vec3 rd, in float maxt) 
+{
+    float precis = prec;
+    float h = precis * 2.0;
+    float t = depth;
+
+    for(int i = 0; i < 122; i++) 
+	{
+        if(abs(h) < precis || t > maxt) break;
+        orbitTrap = vec4(10.0);
+		h = map(ro + rd * t);
+        t += h;
+	}
+    return t;
+}
+
+// softshadow (IQ)
+float softshadow(in vec3 ro, in vec3 rd, in float mint, in float maxt, in float k) 
+{
+    float sh = 1.0;
+    float t = mint;
+    float h = 0.0;
+    for(int i = 0; i < 19; i++)  //23 gut!
+	{
+        if(t > maxt) continue;
+		orbitTrap = vec4(10.0);
+        h = map(ro + rd * t);
+        sh = min(sh, k * h / t);
+        t += h;
+    }
+    return sh;
+}
+
+
+// orbit color
+vec3 BaseColor = vec3(0.2,0.2,0.2);
+vec3 OrbitStrength = vec3(0.8, 0.8, 0.8);
+vec4 X = vec4(0.5, 0.6, 0.6, 0.2);
+vec4 Y = vec4(1.0, 0.5, 0.1, 0.7);
+vec4 Z = vec4(0.8, 0.7, 1.0, 0.3);
+vec4 R = vec4(0.7, 0.7, 0.5, 0.1);
+vec3 getColor()
+{
+	orbitTrap.w = sqrt(orbitTrap.w);
+	vec3 orbitColor = X.xyz*X.w*orbitTrap.x + Y.xyz*Y.w*orbitTrap.y + Z.xyz*Z.w*orbitTrap.z + R.xyz*R.w*orbitTrap.w;
+	vec3 color = mix(BaseColor,3.0*orbitColor,OrbitStrength);
+	return color;
+}
+
+// particles (Andrew Baldwin)
+float snow(vec3 direction)
+{
+	float help = 0.0;
+	const mat3 p = mat3(13.323122,23.5112,21.71123,21.1212,28.7312,11.9312,21.8112,14.7212,61.3934);
+	vec2 uvx = vec2(direction.x,direction.z)+vec2(1.,iResolution.y/iResolution.x)*gl_FragCoord.xy / iResolution.xy;
+	float acc = 0.0;
+	float DEPTH = direction.y*direction.y-0.3;
+	float WIDTH =0.1;
+	float SPEED = 0.1;
+	for (int i=0;i<10;i++) 
+	{
+		float fi = float(i);
+		vec2 q = uvx*(1.+fi*DEPTH);
+		q += vec2(q.y*(WIDTH*mod(fi*7.238917,1.)-WIDTH*.5),SPEED*iTime/(1.+fi*DEPTH*.03));
+		vec3 n = vec3(floor(q),31.189+fi);
+		vec3 m = floor(n)*.00001 + fract(n);
+		vec3 mp = (31415.9+m)/fract(p*m);
+		vec3 r = fract(mp);
+		vec2 s = abs(mod(q,1.)-.5+.9*r.xy-.45);
+		float d = .7*max(s.x-s.y,s.x+s.y)+max(s.x,s.y)-.01;
+		float edge = .04;
+		acc += smoothstep(edge,-edge,d)*(r.x/1.0);
+		help = acc;
+	}
+	return help;
+	}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) 
+{
+    
+    if (iTime >=0. && iTime <=35. ) {efx=4; refleco=0; snowo=0;} 
+    if (iTime >35. && iTime <=70. ) {efx=0; refleco=1; snowo=1;}
+    if (iTime >70. && iTime <=105.) {efx=1; refleco=0; snowo=1;} 
+    if (iTime >105.&& iTime <=140.) {efx=3; refleco=0; snowo=1;} 
+    if (iTime >140.&& iTime <=175.) {efx=2; refleco=0; snowo=1;}  
+    if (iTime >175.&& iTime <=210.) {efx=4; refleco=0; snowo=0;}   
+    if (iTime >210.&& iTime <=245.) {efx=5; refleco=0; snowo=0;}  
+
+	blend=min(2.0*abs(sin((iTime+0.0)*3.1415/scene)),1.0); 
+    if (iTime >245.) blend = 0.;
+    vec2 uv = fragCoord.xy / iResolution.xy;
+    vec2 p = uv * 2.0 - 1.0;
+	p.x *= iResolution.x / iResolution.y;
+	float theta = sin(iTime*0.03) * 3.14 * 2.0;
+    float x = 3.0 * cos(theta)+0.007*rand1(fragCoord.xy); 
+    float z = 3.0 * sin(theta)+0.007*rand2(fragCoord.xy); 
+	vec3 ro; // camera
+	
+	if (efx==0) {
+	prec = 0.001;
+	ro = vec3(x*0.2+1.0, 5.0, z*2.0-3.); 	// camera balls and cube  
+	}
+	if (efx==1) {
+	prec = 0.002;
+	ro = vec3(x*1.2, 7.0, z*2.0);  			// camera menger
+	}
+	if (efx==2) {
+	prec = 0.002;
+	ro = vec3(x*1.0, 6.2, z*2.8);  			// camera mandelbulb
+	depth =4.;
+	}
+	if (efx==3) {
+	kalitime = 40.;
+	prec = 0.002;
+	ro = vec3(x*1.7, 2.6, 2.0);	 			// camera kalibox
+	}
+	if (efx==4) {
+	//time = iTime -2.5;
+	prec = 0.002;
+	kalitime = iTime-15.0;
+	ro = vec3(0.0, 8.0, 0.0001);   			// camera tunnel
+	}
+	if (efx==5) {
+	prec = 0.004;
+	kalitime = 210.+175.; 
+	ro = vec3(0, 3.8, 0.0001);   			// camera swirl
+	}
+
+
+	vec3 ta = vec3(0.0, 0.25, 0.0);
+    vec3 cw = normalize(ta - ro);
+    vec3 cp = vec3(0.0, 1.0, 0.0);
+    vec3 cu = normalize(cross(cw, cp));
+    vec3 cv = normalize(cross(cu, cw));
+	vec3 rd = normalize(p.x * cu + p.y * cv + 7.5 * cw);
+
+// render:
+    vec3 col = vec3(0.0);
+    float t = castRay(ro, rd, 12.0);
+	vec3 pos = ro + rd *t;
+	vec3 nor = calcNormal(pos);
+	vec3 lig;	
+	if (efx==4 || efx ==5 )  	lig = normalize(vec3(-0.4*sin(iTime*0.15), 1.0, 0.5));
+	else if (efx==3)		  	lig = normalize(vec3(-0.1*sin(iTime*0.2), 0.2, 0.4*sin(iTime*0.1)));	
+	else 						lig = normalize(vec3(-0.4, 0.7, 0.5));
+	float dif = clamp(dot(lig, nor), 0.0, 1.0);
+	float spec = pow(clamp(dot(reflect(rd, nor), lig), 0.0, 1.0), 16.0);
+	float sh;
+	if (efx == 1 || efx == 5) sh = softshadow(pos, lig, 0.02, 20.0, 7.0);
+	vec3 color = getColor();
+	col = ((0.8*dif+ spec) + 0.35*color);
+	if (efx !=1 && efx != 5) sh = softshadow(pos, lig, 0.02, 20.0, 7.0); 
+	col = col*clamp(sh, 0.0, 1.0);
+
+
+// reflections:
+if (refleco == 1) {
+    vec3 col2 = vec3(0.0);
+	vec3 ro2 = pos-rd/t;
+	vec3 rd2 = reflect(rd,nor);
+    float t2 = castRay(ro2, rd2, 7.0);
+	vec3 pos2 = vec3(0.0);
+	if (t2<7.0) {
+	pos2 = ro2 + rd2* t2;
+	}
+    vec3 nor2 = calcNormal(pos2);
+	float dif2 = clamp(dot(lig, nor2), 0.0, 1.0);
+	float spec2 = pow(clamp(dot(reflect(rd2, nor2), lig), 0.0, 1.0), 16.0);
+	col+= 0.22*vec3(dif2*color+spec2);
+}
+
+// postprocessing
+float klang1=0.75;
+vec2 uv2=-0.3+2.*fragCoord.xy/iResolution.xy;
+col-=0.20*(1.-klang1)*rand1(uv2.xy*iTime);							
+col*=.9+0.20*(1.-klang1)*sin(10.*iTime+uv2.x*iResolution.x);	
+col*=.9+0.20*(1.-klang1)*sin(10.*iTime+uv2.y*iResolution.y);	
+float Scr=1.-dot(uv2,uv2)*0.15;
+vec2 uv3=fragCoord.xy/iResolution.xy;
+float worl = fworley(uv3 * iResolution.xy / 2100.);
+worl *= exp(-length2(abs(2.*uv3 - 1.))); 
+worl *= abs(1.-0.6*dot(2.*uv3-1.,2.*uv3-1.));
+if (efx==4) col += vec3(0.4*worl,0.35*worl,0.25*worl);
+if (efx==5)  col += vec3(0.2*worl); 
+float g2 = (blend/2.)+0.39;
+float g1 = ((1.-blend)/2.);
+if (uv3.y >=g2+0.11) col*=0.0;
+if (uv3.y >=g2+0.09) col*=0.4;
+if (uv3.y >=g2+0.07) {if (mod(uv3.x-0.06*iTime,0.18)<=0.16) col*=0.5;}
+if (uv3.y >=g2+0.05) {if (mod(uv3.x-0.04*iTime,0.12)<=0.10) col*=0.6;}
+if (uv3.y >=g2+0.03) {if (mod(uv3.x-0.02*iTime,0.08)<=0.06) col*=0.7;}
+if (uv3.y >=g2+0.01) {if (mod(uv3.x-0.01*iTime,0.04)<=0.02) col*=0.8;}
+if (uv3.y <=g1+0.10) {if (mod(uv3.x+0.01*iTime,0.04)<=0.02) col*=0.8;}
+if (uv3.y <=g1+0.08) {if (mod(uv3.x+0.02*iTime,0.08)<=0.06) col*=0.7;}
+if (uv3.y <=g1+0.06) {if (mod(uv3.x+0.04*iTime,0.12)<=0.10) col*=0.6;}
+if (uv3.y <=g1+0.04) {if (mod(uv3.x+0.06*iTime,0.18)<=0.16) col*=0.5;}
+if (uv3.y <=g1+0.02) col*=0.4;
+if (uv3.y <=g1+0.00) col*=0.0;
+
+if (snowo == 1) fragColor = (vec4(col*1.0*Scr-1.6*snow(cv), 1.0)*blend)*vec4(1.0, 0.93, 1.0, 1.0);
+else fragColor = vec4(col*1.0*Scr, 1.0)*blend;
+}
+)SHADER";
   shader_infos all_shader_infos 
   {
     {
@@ -1206,7 +2005,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       , L"drift"
       , license__unknown
       , L"No modifications"
-      , L"Amazing looking performance 2D clouds"
+      , L"Nice looking performance 2D clouds"
       , shader__4tdSWr__2d_clouds
       , false
     },
@@ -1218,6 +2017,46 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       , L"No modifications"
       , L"Amazing looking sphere, I've used the 'sky box' in many shaders"
       , shader__XljGDz__protosphere
+      , false
+    },
+    {
+        L"XdcfR8"
+      , L"Fractal Thingy Flythrough"
+      , L"Klems"
+      , license__unknown
+      , L"No modifications"
+      , L"Cool fractal fly through"
+      , shader__XdcfR8__fractal_thingy_flythrough
+      , false
+    },
+    {
+        L"4ds3zn"
+      , L"Apollonian"
+      , L"iq"
+      , license__cc3
+      , L"No modifications"
+      , L"Fly through apollonian fractal"
+      , shader__4ds3zn__apollonian
+      , false
+    },
+    {
+        L"lsV3Rc"
+      , L"Notch's unmandelboxing"
+      , L"Edward"
+      , license__unknown
+      , L"No modifications"
+      , L"Cool looking mandelbox fly through"
+      , shader__lsV3Rc__unmandelboxing
+      , false
+    },
+    {
+        L"4tc3zf"
+      , L"Galvanize"
+      , L"Virgill"
+      , license__unknown
+      , L"No modifications"
+      , L"Intro for Nordlicht demoparty 2014"
+      , shader__4tc3zf__galvanize
       , false
     },
   };
