@@ -2,7 +2,7 @@
 #include "resource.h"
 
 #include <windows.h>
-#include <wincodec.h> 
+#include <wincodec.h>
 #include <GL/gl.h>
 
 #include <algorithm>
@@ -20,7 +20,7 @@
 
 #pragma comment(lib, "Opengl32")
 
-HINSTANCE get__hinstance () noexcept;
+extern HINSTANCE get__hinstance () noexcept;
 
 namespace
 {
@@ -118,8 +118,10 @@ uniform sampler2D iChannel0;
 
 in vec2 p;
 
-vec2 iResolution = vec2(1.0);
-float iTime = 1.0;
+// TODO: How to make these uniform
+vec3 iMouse       = vec3(0.0);
+vec2 iResolution  = vec2(1.0);
+float iTime       = 1.0;
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord);
 
@@ -148,7 +150,9 @@ void main()
 
       oglGetProgramInfoLog (id, 1024, nullptr, info);
       OutputDebugStringA (msg);
+      OutputDebugStringA ("\n");
       OutputDebugStringA (info);
+      OutputDebugStringA ("\n");
       throw std::runtime_error (msg);
     }
 
@@ -170,17 +174,6 @@ void main()
 
     switch (message)
     {
-    case WM_COMMAND:
-      {
-        int wmId = LOWORD (wParam);
-        // Parse the menu selections:
-        switch (wmId)
-        {
-        default:
-          return DefWindowProc (hWnd, message, wParam, lParam);
-        }
-      }
-      return 0;
     case WM_SIZE:
       width  = LOWORD (lParam);
       height = HIWORD (lParam);
@@ -361,7 +354,10 @@ void main()
     oglUseProgramStages (pid, GL_VERTEX_SHADER_BIT, vsid);
     oglUseProgramStages (pid, GL_FRAGMENT_SHADER_BIT, fsid);
 
-    CHECK_LINK_STATUS (tid);
+    if (!!loaded_config.image_converter)
+    {
+      CHECK_LINK_STATUS (tid);
+    }
     CHECK_LINK_STATUS (vsid);
     CHECK_LINK_STATUS (fsid);
     CHECK_LINK_STATUS (pid);
@@ -386,7 +382,7 @@ void main()
 
 }
 
-int show_screen_saver (int nCmdShow, bool ssm)
+int show__screen_saver (int nCmdShow, bool ssm)
 {
   screen_saver_mode = ssm;
 
@@ -432,5 +428,5 @@ int show_screen_saver (int nCmdShow, bool ssm)
     Sleep (1);
   }
 
-  return msg.wParam;
+  return 0;
 }

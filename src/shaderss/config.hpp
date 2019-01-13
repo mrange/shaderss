@@ -3,23 +3,28 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <wincodec.h> 
+#include <wincodec.h>
 
 #include "common.hpp"
 
 struct shader_info
 {
-  std::wstring  id              ;
-  std::wstring  author          ;
-  std::wstring  license         ;
-  std::wstring  modifications   ;
-  std::wstring  notes           ;
-  std::string   source          ;
+  std::wstring  id                ;
+  std::wstring  short_description ;
+  std::wstring  author            ;
+  std::wstring  license           ;
+  std::wstring  modifications     ;
+  std::wstring  notes             ;
+  std::string   source            ;
 
-  bool          requires_image  ;
+  bool          requires_image    ;
 };
 using shader_infos = std::vector<shader_info> ;
 shader_infos const & get__shader_infos ();
+
+extern std::size_t invalid_index;
+
+std::size_t index_of__shader (std::wstring const & id);
 
 struct shader_configuration
 {

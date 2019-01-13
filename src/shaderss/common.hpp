@@ -30,6 +30,7 @@ auto check (T && v, char const * msg)
   if (!(v))
   {
     OutputDebugStringA (msg);
+    OutputDebugStringA ("\n");
     throw std::runtime_error (msg);
   }
 
@@ -123,7 +124,7 @@ struct com_ptr
     com_ptr that (cp);
 
     swap (that);
-    
+
     return *this;
   }
 
@@ -224,7 +225,7 @@ struct com_out_ptr
   }
 
 private:
-  com_ptr<T>*   receiver; 
+  com_ptr<T>*   receiver;
   T*            ptr     ;
 };
 
@@ -233,7 +234,7 @@ com_ptr<T> cocreate_instance (IID const & clsid)
 {
   com_ptr<T> ptr;
 
-  CHECK_HR (CoCreateInstance( 
+  CHECK_HR (CoCreateInstance(
       clsid
     , nullptr
     , CLSCTX_INPROC_SERVER
@@ -250,3 +251,4 @@ void inplace_ltrim (std::wstring& s);
 
 void inplace_trim (std::wstring& s);
 
+float to_float (std::wstring const & s, float default_to);

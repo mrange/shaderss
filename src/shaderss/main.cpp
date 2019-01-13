@@ -2,7 +2,8 @@
 #include "resource.h"
 
 #include <windows.h>
-#include <wincodec.h> 
+#include <commctrl.h>
+#include <wincodec.h>
 #include <GL/gl.h>
 
 #include <algorithm>
@@ -17,17 +18,22 @@
 
 #include "common.hpp"
 
+#pragma comment(lib, "Comctl32")
+
+#pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+
+extern int show__screen_saver (int nCmdShow, bool screen_saver_mode);
+extern int show__config_dialog (HWND parent);
+
 namespace
 {
   HINSTANCE hinst;
 }
 
-HINSTANCE get__hinstance () noexcept 
-{ 
-  return hinst; 
+HINSTANCE get__hinstance () noexcept
+{
+  return hinst;
 }
-
-int show_screen_saver (int nCmdShow, bool screen_saver_mode);
 
 extern "C"
 {
@@ -46,6 +52,8 @@ int APIENTRY wWinMain (
 
     CHECK_HR (CoInitialize (0));
     auto on_exit__co_unitialize = on_exit_do ([] { CoUninitialize (); });
+
+    InitCommonControls ();
 
     std::wstring command_line (lpCmdLine);
     std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+)|/c:(\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);
@@ -68,18 +76,21 @@ int APIENTRY wWinMain (
     else if (match[3].matched)
     {
       // /dev - Show screen saver in window
-      show_screen_saver (nCmdShow, false);
+      show__screen_saver (nCmdShow, false);
       return 0;
     }
     else if (match[4].matched)
     {
       // /c - Show config modal
+
+      show__config_dialog (nullptr);
+
       return 1;
     }
     else if (match[5].matched)
     {
       // /s - Show screen saver in full screen
-      show_screen_saver (nCmdShow, true);
+      show__screen_saver (nCmdShow, true);
       return 0;
     }
     else if (match[6].matched)
@@ -90,6 +101,10 @@ int APIENTRY wWinMain (
     else if (match[7].matched)
     {
       // /c:<HWND> - Show config modal attached to HWND
+
+      // TODO: Parse HWND
+      show__config_dialog (nullptr);
+
       return 1;
     }
     else
