@@ -9,14 +9,15 @@
 
 struct shader_info
 {
-  std::wstring  id              ;
-  std::wstring  author          ;
-  std::wstring  license         ;
-  std::wstring  modifications   ;
-  std::wstring  notes           ;
-  std::string   source          ;
+  std::wstring  id                ;
+  std::wstring  short_description ;
+  std::wstring  author            ;
+  std::wstring  license           ;
+  std::wstring  modifications     ;
+  std::wstring  notes             ;
+  std::string   source            ;
 
-  bool          requires_image  ;
+  bool          requires_image    ;
 };
 using shader_infos = std::vector<shader_info> ;
 shader_infos const & get__shader_infos ();

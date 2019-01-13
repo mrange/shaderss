@@ -706,6 +706,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
   {
     {
         L"lldBD8"
+      , L"Transparent crystal"
       , L"mrange"
       , license__cc3
       , L"No modifications"
@@ -715,6 +716,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     },
     {
         L"4dj3Wy"
+      , L"Orbiting Mandelbrot traps"
       , L"guil"
       , license__cc3
       , L"Moved fractal to right and reduced number of iterations"
@@ -724,6 +726,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     },
     {
         L"Mld3Rn"
+      , L"Voronoi crystal lattice"
       , L"Shane"
       , license__cc3
       , L"Inferred license to be CC3 because the sample wasn't clear on license"
@@ -906,7 +909,7 @@ std::vector<BYTE> loaded_shader_configuration::get__image_bits ()
   CHECK_HR (image_converter->CopyPixels (
       &wic_rect
     , 3*wic_width
-    , pixels.size ()
+    , static_cast<UINT> (pixels.size ())
     , &pixels.front ()
     ));
 

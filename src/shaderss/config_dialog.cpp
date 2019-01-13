@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include <Windows.h>
+#include <windowsx.h>
 
 #include "resource.h"
 
@@ -17,6 +18,18 @@ namespace
   {
     HWND hwnd = CHECK (GetDlgItem (dlg, id));
     CHECK (SetWindowTextW (hwnd, t.c_str ()));
+  }
+
+  void set__shader_infos (shader_infos const & sis)
+  {
+    HWND hwnd = CHECK (GetDlgItem (dlg, IDC_SELECT_SHADER));
+
+    for (auto const & si : sis)
+    {
+      CHECK (CB_ERR != ComboBox_AddString (hwnd, si.short_description.c_str ()));
+    }
+
+    CHECK (CB_ERR != ComboBox_SetCurSel (hwnd, 0));
   }
 
   void set__shader_info (shader_info const & si)
@@ -43,6 +56,9 @@ namespace
     case WM_INITDIALOG:
       {
         dlg = hwnd;
+
+        set__shader_infos (get__shader_infos ());
+
         auto cfg = get__current_configuration ();
         set__configuration (cfg);
         return (LRESULT)TRUE;

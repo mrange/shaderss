@@ -170,17 +170,6 @@ void main()
 
     switch (message)
     {
-    case WM_COMMAND:
-      {
-        int wmId = LOWORD (wParam);
-        // Parse the menu selections:
-        switch (wmId)
-        {
-        default:
-          return DefWindowProc (hWnd, message, wParam, lParam);
-        }
-      }
-      return 0;
     case WM_SIZE:
       width  = LOWORD (lParam);
       height = HIWORD (lParam);
@@ -432,5 +421,5 @@ int show__screen_saver (int nCmdShow, bool ssm)
     Sleep (1);
   }
 
-  return msg.wParam;
+  return 0;
 }
