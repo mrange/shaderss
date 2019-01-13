@@ -51,6 +51,8 @@ namespace
 
   LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
   {
+    LRESULT good = 1;
+    LRESULT bad  = 0;
     switch (message)
     {
     case WM_INITDIALOG:
@@ -61,19 +63,32 @@ namespace
 
         auto cfg = get__current_configuration ();
         set__configuration (cfg);
-        return (LRESULT)TRUE;
+        return good;
       }
     case WM_COMMAND:
       {
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+        auto wlow   = LOWORD(wParam);
+        auto whigh  = HIWORD(wParam);
+        OutputDebugStringW (std::to_wstring (wParam).c_str ());
+        OutputDebugStringW (L"\n");
+        if (wlow == IDC_SELECT_SHADER && whigh == CBN_SELCHANGE)
         {
-            EndDialog(hwnd, LOWORD(wParam));
-            return (LRESULT)TRUE;
+          HWND hwnd = CHECK (GetDlgItem (dlg, IDC_SELECT_SHADER));
+          auto i = ComboBox_GetCurSel (hwnd);
+          auto const & sis = get__shader_infos ();
+          auto const & si = sis.at (i);
+          set__shader_info (si);
+          return good;
+        }
+        else if (wlow == IDOK || wlow == IDCANCEL)
+        {
+          EndDialog(hwnd, wlow);
+          return good;
         }
         break;
       }
     }
-    return (LRESULT)FALSE;
+    return bad;
   }
 }
 
