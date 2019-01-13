@@ -22,6 +22,10 @@ struct shader_info
 using shader_infos = std::vector<shader_info> ;
 shader_infos const & get__shader_infos ();
 
+extern std::size_t invalid_index;
+
+std::size_t index_of__shader (std::wstring const & id);
+
 struct shader_configuration
 {
   shader_info   shader_info     ;

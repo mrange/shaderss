@@ -30,6 +30,7 @@ auto check (T && v, char const * msg)
   if (!(v))
   {
     OutputDebugStringA (msg);
+    OutputDebugStringA ("\n");
     throw std::runtime_error (msg);
   }
 

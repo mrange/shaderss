@@ -150,7 +150,9 @@ void main()
 
       oglGetProgramInfoLog (id, 1024, nullptr, info);
       OutputDebugStringA (msg);
+      OutputDebugStringA ("\n");
       OutputDebugStringA (info);
+      OutputDebugStringA ("\n");
       throw std::runtime_error (msg);
     }
 
@@ -352,7 +354,10 @@ void main()
     oglUseProgramStages (pid, GL_VERTEX_SHADER_BIT, vsid);
     oglUseProgramStages (pid, GL_FRAGMENT_SHADER_BIT, fsid);
 
-    CHECK_LINK_STATUS (tid);
+    if (!!loaded_config.image_converter)
+    {
+      CHECK_LINK_STATUS (tid);
+    }
     CHECK_LINK_STATUS (vsid);
     CHECK_LINK_STATUS (fsid);
     CHECK_LINK_STATUS (pid);

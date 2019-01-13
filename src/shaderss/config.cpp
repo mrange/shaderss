@@ -7,6 +7,7 @@
 
 namespace
 {
+  wchar_t const hkey__path[]        = LR"*(Software\mrange\shaderss)*";
   wchar_t const license__cc0[]      = L"CC0 1.0 Universal (CC0 1.0) Public Domain Dedication";
   wchar_t const license__cc3[]      = L"License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.";
   wchar_t const license__unknown[]  = L"Unknown - please contact me if you object having the shader as part of this collection";
@@ -1207,7 +1208,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       , L"No modifications"
       , L"Amazing looking performance 2D clouds"
       , shader__4tdSWr__2d_clouds
-      , true
+      , false
     },
     {
         L"XljGDz"
@@ -1217,20 +1218,20 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       , L"No modifications"
       , L"Amazing looking sphere, I've used the 'sky box' in many shaders"
       , shader__XljGDz__protosphere
-      , true
+      , false
     },
   };
  
-  std::wstring read__reg_value (
+  std::wstring get__reg_value (
     HKEY            parent
-  , wchar_t const * value
+  , wchar_t const * id
   )
   {
     DWORD type {};
     DWORD expected_size {};
     if (ERROR_SUCCESS == RegQueryValueExW (
         parent
-      , value
+      , id
       , nullptr
       , &type
       , nullptr
@@ -1241,7 +1242,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       DWORD actual_size = expected_size;
       if (type == REG_SZ && ERROR_SUCCESS == RegQueryValueExW (
           parent
-        , value
+        , id
         , nullptr
         , &type
         , reinterpret_cast<BYTE*> (&result.front ())
@@ -1270,11 +1271,51 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       return std::wstring ();
     }
   }
+
+
+  void set__reg_value (
+    HKEY                  parent
+  , wchar_t const *       id
+  , std::wstring const &  value
+  )
+  {
+    DWORD type {};
+    DWORD expected_size {};
+    CHECK (ERROR_SUCCESS == RegSetValueExW (
+        parent
+      , id
+      , 0
+      , REG_SZ
+      , reinterpret_cast<BYTE const *> (value.c_str ())
+      , 2*(value.size () + 1)));
+  }
 }
 
 shader_infos const & get__shader_infos ()
 {
   return all_shader_infos;
+}
+
+std::size_t invalid_index = static_cast<std::size_t> (-1);
+
+std::size_t index_of__shader (std::wstring const & id)
+{
+  auto i__find_shader = std::find_if (
+      all_shader_infos.begin ()
+    , all_shader_infos.end ()
+    , [&id] (auto && si) 
+    { 
+      return si.id == id; 
+    });
+
+  if (i__find_shader != all_shader_infos.end ())
+  {
+    return i__find_shader - all_shader_infos.begin ();
+  }
+  else
+  {
+    return invalid_index;
+  }
 }
 
 shader_configuration get__current_configuration ()
@@ -1290,47 +1331,28 @@ shader_configuration get__current_configuration ()
       , L""
     };
 
-
   HKEY hkey__root {};
-  auto hkey__path = LR"*(Software\mrange\shaderss)*";
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, hkey__path, 0, KEY_READ, &hkey__root))
   {
     auto on_exit__close_key = on_exit_do ([hkey__root] { RegCloseKey (hkey__root); } );
 
-    auto shader__id         = read__reg_value (hkey__root, L"shader__id");
-    auto shader__start_time = read__reg_value (hkey__root, L"shader__start_time");
-    auto shader__speed      = read__reg_value (hkey__root, L"shader__speed");
-    auto shader__image      = read__reg_value (hkey__root, L"shader__image");
+    auto shader__id         = get__reg_value (hkey__root, L"shader__id"         );
+    auto shader__start_time = get__reg_value (hkey__root, L"shader__start_time" );
+    auto shader__speed      = get__reg_value (hkey__root, L"shader__speed"      );
+    auto shader__image      = get__reg_value (hkey__root, L"shader__image"      );
 
     auto start_time = to_float (shader__start_time, 0.0);
     auto speed      = to_float (shader__speed     , 1.0);
 
-    auto i__find_shader      = std::find_if (
-        sis.begin ()
-      , sis.end ()
-      , [&shader__id] (auto && si) 
-      { 
-        return si.id == shader__id; 
-      }
-      );
-
-    if (i__find_shader != sis.end ())
-    {
-      return
-        {
-            *i__find_shader
-          , start_time
-          , speed
-          , shader__image
-        };
-    }
-    else
-    {
-      // TODO: Log
-      return default_configuration;
-    }
-                  
-
+    auto index_     = index_of__shader (shader__id);
+    auto index      = index_ != invalid_index ? index_ : std::size_t {};
+    return
+      {
+          sis[index]
+        , start_time
+        , speed
+        , shader__image
+      };
   }
   else
   {
@@ -1341,7 +1363,16 @@ shader_configuration get__current_configuration ()
 
 void set__current_configuration (shader_configuration const & configuration)
 {
-  // TODO:
+  HKEY hkey__root {};
+  if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, hkey__path, 0, KEY_WRITE, &hkey__root))
+  {
+    auto on_exit__close_key = on_exit_do ([hkey__root] { RegCloseKey (hkey__root); } );
+
+    set__reg_value (hkey__root, L"shader__id"         , configuration.shader_info.id              );
+    set__reg_value (hkey__root, L"shader__start_time" , std::to_wstring (configuration.start_time ));
+    set__reg_value (hkey__root, L"shader__speed"      , std::to_wstring (configuration.speed      ));
+    set__reg_value (hkey__root, L"shader__image"      , configuration.image_path                  );
+  }
 }
 
 std::pair<UINT, UINT> loaded_shader_configuration::get__image_dimensions ()

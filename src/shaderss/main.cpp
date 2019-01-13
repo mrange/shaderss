@@ -101,6 +101,10 @@ int APIENTRY wWinMain (
     else if (match[7].matched)
     {
       // /c:<HWND> - Show config modal attached to HWND
+
+      // TODO: Parse HWND
+      show__config_dialog (nullptr);
+
       return 1;
     }
     else

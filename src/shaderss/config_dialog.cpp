@@ -44,7 +44,7 @@ namespace
     CHECK (Edit_SetText (hwnd, t.c_str ()));
   }
 
-  void set__shader_infos (shader_infos const & sis)
+  void set__shader_infos (shader_infos const & sis, std::wstring const & shader__id)
   {
     auto hwnd = CHECK (GetDlgItem (dlg, IDC_SELECT_SHADER));
 
@@ -53,7 +53,12 @@ namespace
       CHECK (CB_ERR != ComboBox_AddString (hwnd, si.short_description.c_str ()));
     }
 
-    CHECK (CB_ERR != ComboBox_SetCurSel (hwnd, 0));
+    auto index = index_of__shader (shader__id);
+    if (index != invalid_index)
+    {
+      CHECK (CB_ERR != ComboBox_SetCurSel (hwnd, index));
+    }
+
   }
 
   void set__shader_info (shader_info const & si)
@@ -123,9 +128,10 @@ namespace
       {
         dlg = hwnd;
 
-        set__shader_infos (get__shader_infos ());
-
         auto cfg = get__current_configuration ();
+
+        set__shader_infos (get__shader_infos (), cfg.shader_info.id);
+
         set__configuration (cfg);
         return good;
       }
@@ -165,9 +171,27 @@ namespace
 
           return good;
         }
-        else if (wlow == IDOK || wlow == IDCANCEL)
+        else if (wlow == IDOK)
         {
-          EndDialog(hwnd, wlow);
+          auto hwnd       = CHECK (GetDlgItem (dlg, IDC_SELECT_SHADER));
+          auto selected   = ComboBox_GetCurSel (hwnd);
+
+          auto start_time = get__text (IDC_START_TIME);
+          auto speed      = get__text (IDC_SPEED     );
+          auto image_path = get__text (IDC_IMAGE_PATH);
+          set__current_configuration (
+            {
+                get__shader_infos ().at (selected)
+              , to_float (start_time, 0)
+              , to_float (speed     , 1)
+              , image_path
+            });
+          EndDialog(dlg, wlow);
+          return good;
+        }
+        else if (wlow == IDCANCEL)
+        {
+          EndDialog(dlg, wlow);
           return good;
         }
         break;
