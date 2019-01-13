@@ -1270,30 +1270,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       return std::wstring ();
     }
   }
-
-  float to_float (std::wstring const & s, float default_to)
-  {
-    if (!s.empty ())
-    {
-      auto begin    = s.c_str ();
-      auto end      = begin + s.size ();
-      wchar_t * last= nullptr;
-      auto f = std::wcstof (begin, &last);
-      if (end == last)
-      {
-        return f;
-      }
-      else
-      {
-        return default_to;
-      }
-    }
-    else
-    {
-      return default_to;
-    }
-  }
-
 }
 
 shader_infos const & get__shader_infos ()

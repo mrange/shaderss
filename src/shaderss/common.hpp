@@ -250,3 +250,4 @@ void inplace_ltrim (std::wstring& s);
 
 void inplace_trim (std::wstring& s);
 
+float to_float (std::wstring const & s, float default_to);

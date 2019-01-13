@@ -2,6 +2,7 @@
 #include "resource.h"
 
 #include <windows.h>
+#include <commctrl.h>
 #include <wincodec.h> 
 #include <GL/gl.h>
 
@@ -16,6 +17,10 @@
 #include "glext.h"
 
 #include "common.hpp"
+
+#pragma comment(lib, "Comctl32")
+
+#pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 extern int show__screen_saver (int nCmdShow, bool screen_saver_mode);
 extern int show__config_dialog (HWND parent);
@@ -47,6 +52,8 @@ int APIENTRY wWinMain (
 
     CHECK_HR (CoInitialize (0));
     auto on_exit__co_unitialize = on_exit_do ([] { CoUninitialize (); });
+
+    InitCommonControls ();
 
     std::wstring command_line (lpCmdLine);
     std::wregex re_commands (LR"*(^\s*(()|(/dev)|(/c)|(/s)|/p (\d+)|/c:(\d+))\s*$)*", std::regex_constants::ECMAScript | std::regex_constants::icase);
