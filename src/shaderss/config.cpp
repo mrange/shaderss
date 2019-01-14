@@ -2968,7 +2968,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       , 0
       , REG_SZ
       , reinterpret_cast<BYTE const *> (value.c_str ())
-      , 2*(value.size () + 1)));
+      , 2*(static_cast<DWORD> (value.size ()) + 1)));
   }
 }
 
@@ -3077,7 +3077,7 @@ std::vector<BYTE> loaded_shader_configuration::get__image_bits ()
   std::vector<BYTE> pixels;
   pixels.resize (stride*wic_height);
 
-  WICRect wic_rect { 0, 0, wic_width, wic_height };
+  WICRect wic_rect { 0, 0, static_cast<INT> (wic_width), static_cast<INT> (wic_height) };
 
   CHECK_HR (image_converter->CopyPixels (
       &wic_rect

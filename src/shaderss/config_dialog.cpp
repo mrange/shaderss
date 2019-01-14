@@ -118,10 +118,10 @@ namespace
     }
   }
 
-  LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+  INT_PTR CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
   {
-    LRESULT good = 1;
-    LRESULT bad  = 0;
+    INT_PTR good = 1;
+    INT_PTR bad  = 0;
     switch (message)
     {
     case WM_INITDIALOG:
