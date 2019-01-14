@@ -256,7 +256,7 @@ void main()
     wcex.hbrBackground  = (HBRUSH) GetStockObject(BLACK_BRUSH);
     wcex.lpszMenuName   = nullptr;
     wcex.lpszClassName  = window_class_name;
-    wcex.hIconSm        = LoadIcon (wcex.hInstance, MAKEINTRESOURCE (IDI_SMALL));
+    wcex.hIconSm        = LoadIcon (wcex.hInstance, MAKEINTRESOURCE (IDI_SHADERSS));
 
     return CHECK (RegisterClassExW (&wcex));
   }
