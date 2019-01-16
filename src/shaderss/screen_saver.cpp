@@ -278,9 +278,6 @@ void main()
       , nullptr
       ));
 
-    ShowWindow (hwnd, nCmdShow);
-    CHECK (UpdateWindow (hwnd));
-
     if (screen_saver_mode)
     {
       auto cx = GetSystemMetrics (SM_CXSCREEN);
@@ -303,6 +300,15 @@ void main()
         , SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOOWNERZORDER
         );
     }
+
+    RECT client;
+    CHECK (GetClientRect(hwnd, &client));
+    width  = client.right - client.left;
+    height = client.bottom - client.top;
+
+    ShowWindow (hwnd, nCmdShow);
+    CHECK (UpdateWindow (hwnd));
+
   }
 
 
@@ -328,7 +334,7 @@ void main()
       gl_functions[i] = CHECK (wglGetProcAddress(gl_names[i]));
     }
 
-    if (!!loaded_config.image_converter)
+    if (loaded_config.image_converter)
     {
       auto dim    = loaded_config.get__image_dimensions ();
       auto pixels = loaded_config.get__image_bits ();
@@ -395,14 +401,6 @@ int show__screen_saver (int nCmdShow, bool ssm)
   HACCEL hAccelTable = LoadAccelerators (get__hinstance (), MAKEINTRESOURCE (IDC_SHADERSS));
 
   MSG msg;
-
-  {
-    RECT client;
-
-    CHECK (GetClientRect(hwnd, &client));
-    width  = client.right - client.left;
-    height = client.bottom - client.top;
-  }
 
   start = GetTickCount64 ();
 

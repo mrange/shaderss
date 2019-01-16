@@ -137,6 +137,11 @@ struct com_ptr
     return *this;
   }
 
+  explicit operator bool () const noexcept
+  {
+    return ptr;
+  }
+
   bool operator! () const noexcept
   {
     return !ptr;
