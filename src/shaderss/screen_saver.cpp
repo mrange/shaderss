@@ -36,16 +36,17 @@ namespace
 
   HGLRC       hrc               ;
   GLuint      pid               ;
-  GLuint      fsid              ;
   GLuint      vsid              ;
+  GLuint      fsid              ;
   GLuint      tid               ;
+  GLuint      fbid              ;
+  GLuint      fbfsid            ;
+  GLuint      fbtid             ;
 
   float       start_time        ;
   float       speed      = 1    ;
 
-  constexpr int gl_functions_count = 7;
-
-  char const * const gl_names[gl_functions_count] =
+  char const * const gl_names[] =
   {
     "glCreateShaderProgramv",
     "glGenProgramPipelines" ,
@@ -54,7 +55,13 @@ namespace
     "glProgramUniform4fv"   ,
     "glGetProgramiv"        ,
     "glGetProgramInfoLog"   ,
+    "glGenFramebuffers"     ,
+    "glBindFramebuffer"     ,
+    "glFramebufferTexture"  ,
+    "glDrawBuffers"         ,
   };
+
+  constexpr int gl_functions_count = std::extent<decltype(gl_names)>::value;
 
   void * gl_functions[gl_functions_count];
 
@@ -65,6 +72,10 @@ namespace
   #define oglProgramUniform4fv            ((PFNGLPROGRAMUNIFORM4FVPROC)     gl_functions[4])
   #define oglGetProgramiv                 ((PFNGLGETPROGRAMIVPROC)          gl_functions[5])
   #define oglGetProgramInfoLog            ((PFNGLGETPROGRAMINFOLOGPROC)     gl_functions[6])
+  #define oglGenFramebuffers              ((PFNGLGENFRAMEBUFFERSPROC)       gl_functions[7])
+  #define oglBindFramebuffer              ((PFNGLBINDFRAMEBUFFERPROC)       gl_functions[8])
+  #define oglFramebufferTexture           ((PFNGLFRAMEBUFFERTEXTUREPROC)    gl_functions[9])
+  #define oglDrawBuffers                  ((PFNGLDRAWBUFFERSPROC)           gl_functions[10])
 
   PIXELFORMATDESCRIPTOR const pfd =
   {
@@ -101,6 +112,23 @@ void main()
 {
   gl_Position=vec4(inVer,0.0,1.0);
   p=inVer;
+}
+)SHADER";
+
+  char const fragment_shader[] = R"SHADER(
+#version 430
+
+precision mediump float;
+
+in vec2 UV;
+
+out vec3 color;
+
+uniform sampler2D renderedTexture;
+
+void main()
+{
+  color = texture (renderedTexture, UV).xyz;
 }
 )SHADER";
 
@@ -177,7 +205,6 @@ void main()
     case WM_SIZE:
       width  = LOWORD (lParam);
       height = HIWORD (lParam);
-      glViewport (0, 0, width, height);
       return 0;
     case WM_PAINT:
       {
@@ -334,6 +361,17 @@ void main()
       gl_functions[i] = CHECK (wglGetProcAddress(gl_names[i]));
     }
 
+    oglGenFramebuffers (1, &fbid);
+    oglBindFramebuffer (GL_FRAMEBUFFER, fbid);
+    glGenTextures (1, &fbtid);
+    glBindTexture (GL_TEXTURE_2D, fbtid);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    oglFramebufferTexture (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, fbtid, 0);
+    GLenum draw_buffers[] = { GL_COLOR_ATTACHMENT0 };
+    oglDrawBuffers (1, draw_buffers); // "1" is the size of DrawBuffers
+
     if (loaded_config.image_converter)
     {
       auto dim    = loaded_config.get__image_dimensions ();
@@ -349,16 +387,16 @@ void main()
     std::string shader_source = fragment_shader_prelude;
     shader_source += loaded_config.shader_configuration.shader_info.source;
 
-    auto vsh = vertex_shader;
-    auto fsh = shader_source.c_str ();
+    auto vsh    = vertex_shader         ;
+    auto fsh    = shader_source.c_str ();
+    auto fbfsh  = fragment_shader       ;
 
-    vsid = oglCreateShaderProgramv (GL_VERTEX_SHADER, 1, &vsh);
-    fsid = oglCreateShaderProgramv (GL_FRAGMENT_SHADER, 1, &fsh);
+    vsid   = oglCreateShaderProgramv (GL_VERTEX_SHADER, 1, &vsh);
+    fsid   = oglCreateShaderProgramv (GL_FRAGMENT_SHADER, 1, &fsh);
+    fbfsid = oglCreateShaderProgramv (GL_FRAGMENT_SHADER, 1, &fbfsh);
 
     oglGenProgramPipelines (1, &pid);
     oglBindProgramPipeline (pid);
-    oglUseProgramStages (pid, GL_VERTEX_SHADER_BIT, vsid);
-    oglUseProgramStages (pid, GL_FRAGMENT_SHADER_BIT, fsid);
 
     if (!!loaded_config.image_converter)
     {
@@ -366,6 +404,7 @@ void main()
     }
     CHECK_LINK_STATUS (vsid);
     CHECK_LINK_STATUS (fsid);
+    CHECK_LINK_STATUS (fbfsid);
     CHECK_LINK_STATUS (pid);
   }
 
@@ -380,6 +419,12 @@ void main()
       height*1.f            ,
       0                     ,
     };
+
+    oglUseProgramStages (pid, GL_VERTEX_SHADER_BIT, vsid);
+    oglUseProgramStages (pid, GL_FRAGMENT_SHADER_BIT, fsid);
+    oglBindFramebuffer (GL_FRAMEBUFFER, fbid);
+//oglBindFramebuffer (GL_FRAMEBUFFER, 0);
+    glViewport (0, 0, width, height);
 
     oglProgramUniform4fv (fsid, 0, 1, fparams);
 
